@@ -1,0 +1,55 @@
+# Local stack for the Relay case study.
+# Everything here runs without an AWS account, an API key or a GPU.
+# The gateway, worker and load generator are added in Phase 1.
+
+services:
+  # Customer's AWS environment (S3, SQS, DynamoDB) at localhost:4566.
+  floci:
+    image: floci/floci:latest  # pin to a release (e.g. floci/floci:x.y.z) once Phase 1 is stable
+    ports:
+      - "4566:4566"
+    environment:
+      FLOCI_HOSTNAME: floci          # so returned URLs (e.g. SQS QueueUrl) resolve from other containers
+      FLOCI_STORAGE_MODE: memory     # ephemeral: every `make up` starts clean
+      FLOCI_SERVICES_UI_ENABLED: "false"
+
+  # OpenAI-compatible stand-in for vLLM, used for scale tests.
+  # Latency values are placeholders until Phase 3 calibrates them from real GPU runs
+  # (see docs/methodology.md, rule 3). Check units against the simulator's configuration docs.
+  inference-sim:
+    image: ghcr.io/llm-d/llm-d-inference-sim:v0.9.0
+    ports:
+      - "8000:8000"
+    command:
+      - --model=relay/code-7b
+      - --port=8000
+      - --mode=random
+      - --time-to-first-token=150
+      - --time-to-first-token-std-dev=30
+      - --inter-token-latency=20
+      - --inter-token-latency-std-dev=5
+      - --max-num-seqs=8
+      - --time-factor-under-load=2.0
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - inference-sim
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ADMIN_PASSWORD: admin  # local only
+    volumes:
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus

@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+build/
+dist/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Environment
+.env
+
+# Raw per-request traces can be large; summaries in results/ are committed.
+results/raw/
+
+# Generated site output
+site/_build/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

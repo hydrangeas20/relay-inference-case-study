@@ -1,0 +1,50 @@
+[project]
+name = "relay"
+version = "0.1.0"
+description = "Relay: an inference engineering case study"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Hamda Aden" }]
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "httpx>=0.27",
+    "boto3>=1.35",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4",
+    "prometheus-client>=0.20",
+    "numpy>=1.26",
+    "psutil>=6.0",
+]
+
+[project.optional-dependencies]
+report = ["plotly>=5.24", "pandas>=2.2", "jinja2>=3.1"]
+
+[dependency-groups]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.6", "mypy>=1.11"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/relay"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "ASYNC"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = ["integration: needs the Docker stack running (make up)"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["relay"]
+mypy_path = "src"
