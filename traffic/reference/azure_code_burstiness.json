@@ -1,0 +1,39 @@
+{
+  "model": "log-rate Ornstein-Uhlenbeck (Cox process)",
+  "rate_relative_std": 0.1612,
+  "correlation_time_s": 8.544,
+  "hours_used": 126,
+  "detrend_window_s": 600,
+  "fit": [
+    {
+      "window_s": 1,
+      "observed_rate_cv": 0.1547,
+      "fitted_rate_cv": 0.1581
+    },
+    {
+      "window_s": 2,
+      "observed_rate_cv": 0.1593,
+      "fitted_rate_cv": 0.1551
+    },
+    {
+      "window_s": 5,
+      "observed_rate_cv": 0.1478,
+      "fitted_rate_cv": 0.1469
+    },
+    {
+      "window_s": 10,
+      "observed_rate_cv": 0.1333,
+      "fitted_rate_cv": 0.135
+    },
+    {
+      "window_s": 30,
+      "observed_rate_cv": 0.1026,
+      "fitted_rate_cv": 0.1035
+    },
+    {
+      "window_s": 60,
+      "observed_rate_cv": 0.0805,
+      "fitted_rate_cv": 0.0797
+    }
+  ]
+}

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from pydantic import TypeAdapter
 
-from relay.traces.schema import TRACE_FORMAT_VERSION, TraceHeader, TraceRequest
+from relay.traces.schema import SUPPORTED_FORMAT_VERSIONS, TraceHeader, TraceRequest
 
 _request_adapter: TypeAdapter[TraceRequest] = TypeAdapter(TraceRequest)
 
@@ -44,7 +44,7 @@ def read_trace(path: Path) -> Trace:
     if not lines:
         raise TraceFormatError(f"{path} is empty")
     header = TraceHeader.model_validate_json(lines[0])
-    if header.format_version != TRACE_FORMAT_VERSION:
+    if header.format_version not in SUPPORTED_FORMAT_VERSIONS:
         raise TraceFormatError(f"unsupported trace format version {header.format_version}")
     requests = [_request_adapter.validate_json(line) for line in lines[1:] if line.strip()]
     if len(requests) != header.n_requests:

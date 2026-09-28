@@ -12,7 +12,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
-TRACE_FORMAT_VERSION = 1
+TRACE_FORMAT_VERSION = 2
+SUPPORTED_FORMAT_VERSIONS = (1, 2)
 
 
 class FileRef(BaseModel):
@@ -32,6 +33,10 @@ class CompletionRequest(BaseModel):
     suffix_chars: int = Field(ge=0)
     context_files: list[FileRef] = Field(default_factory=list)
     max_tokens: int = Field(gt=0)
+    # Sizes the traffic model asked for, in tokens (format v2). The prompt actually
+    # built can fall short if the chosen file is too small; analysis compares the two.
+    target_prompt_tokens: int | None = Field(default=None, gt=0)
+    target_output_tokens: int | None = Field(default=None, gt=0)
 
 
 class AgentRequest(BaseModel):
@@ -70,3 +75,8 @@ class TraceHeader(BaseModel):
     corpus_sha256: str
     generator: str
     params: dict[str, object]
+    # Format v2: traffic-model traces (ADR-0004).
+    kind: str = "constant"  # constant | day | window
+    start_utc_s: float = 0.0  # seconds after midnight UTC that send_at_s = 0 corresponds to
+    scale: float | None = None  # fraction of Relay's full traffic this trace represents
+    traffic_model_sha256: str | None = None

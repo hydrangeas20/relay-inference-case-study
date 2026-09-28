@@ -1,0 +1,55 @@
+# Relay's traffic model (Phase 2, ADR-0004).
+#
+# Every number here is either an assumption about Relay (marked ASSUMPTION) or
+# derived from Azure's public 2024 code trace (marked AZURE, see traffic/reference/).
+# Assumptions are the engineer's to own and revise; they're listed in one place so
+# they can be challenged.
+
+[users]
+daily_active = 400_000          # ASSUMPTION (client brief)
+active_hours_per_day = 4.0      # ASSUMPTION: hours per user per weekday with the editor active
+
+# Interactive demand per active user-hour.
+[rates]
+completions_per_active_hour = 60   # ASSUMPTION: about one completion request a minute
+agent_turns_per_active_hour = 4    # ASSUMPTION
+
+# Weekday 24-hour shape: an overnight floor plus one workday wave per region,
+# as Gaussian bumps in UTC. Weekends are not modelled yet.
+[envelope]
+floor = 0.10                    # fraction of peak left overnight; tuned so the hourly
+                                # peak/trough ratio (9.6x) sits inside Azure's
+                                # Mon-Thu range (9.1x-11.3x, AZURE)
+
+[[envelope.region]]
+name = "north_america"
+share = 0.6                     # ASSUMPTION
+center_utc_h = 17.0             # ASSUMPTION: ~1 p.m. Eastern
+width_h = 3.0                   # ASSUMPTION: standard deviation of the workday bump
+
+[[envelope.region]]
+name = "europe"
+share = 0.4                     # ASSUMPTION
+center_utc_h = 12.0             # ASSUMPTION: ~1-2 p.m. Central European
+width_h = 2.5                   # ASSUMPTION
+
+# Minute-to-minute burstiness on top of the envelope (decision 2C).
+[burstiness]
+reference = "traffic/reference/azure_code_burstiness.json"   # AZURE fit
+
+# Nightly repo indexing (RLY-7). Jobs are enqueued in a batch window.
+[indexing]
+jobs_per_day = 200_000          # ASSUMPTION: half of daily actives re-indexed nightly
+window_start_utc_h = 6.0        # ASSUMPTION: 02:00 Eastern
+window_minutes = 60             # ASSUMPTION
+files_per_job = [1, 4]          # ASSUMPTION
+chunk_chars = 1_500             # ASSUMPTION
+
+# Request sizes (decision 3B).
+[sizes]
+completion_reference = "traffic/reference/azure_code_sizes.csv"   # AZURE
+chars_per_token = 3.5           # ASSUMPTION until the model's tokenizer is chosen (Phase 3)
+completion_context_files = [0, 2]    # ASSUMPTION, capped by the prompt budget
+completion_suffix_chars = [0, 1_500] # ASSUMPTION (suffix is unused until FIM, ADR-0003 Q4)
+agent_context_chars = [2_000, 8_000] # ASSUMPTION
+agent_max_tokens = [128, 512]        # ASSUMPTION
