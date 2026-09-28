@@ -1,6 +1,6 @@
 # ADR-0004: Relay's traffic model
 
-- **Status:** Accepted
+- **Status:** Accepted, amended by [ADR-0005](0005-traffic-model-revision.md)
 - **Date:** 2026-09-28
 - **Decided by:** hydrangeas20
 

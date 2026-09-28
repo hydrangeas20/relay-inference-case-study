@@ -1,0 +1,190 @@
+# Phase 2 validation: preregistration
+
+- **Version:** 1 (draft with two open items; see §10)
+- **Date:** 2026-09-28
+- **Owner:** hydrangeas20
+- **Decisions:** [ADR-0005](../decisions/0005-traffic-model-revision.md)
+
+This document fixes, before any candidate model is validated, everything the revised traffic model will be judged against. It's committed on its own, before the implementation, so the git history shows the order.
+
+**Rule for changes.** Nothing here changes after a validation result has been seen. An amendment is a new, dated section in this file, committed *before* the run it affects. §10 lists the two items still open. No candidate validation runs until they're resolved by amendment.
+
+The thresholds below are **engineering acceptance thresholds** chosen by the project before evaluation. They aren't established by Azure's dataset or by published literature.
+
+---
+
+## 1. Data
+
+- **Source:** Azure LLM inference trace 2024, code service, one-week sample (`AzureLLMInferenceTrace_code_1week.csv`), CC-BY 4.0.
+- **SHA-256:** `71de5c55cbc35f8f1ed0b6b7806b4cd1e9764b0058469725a6aac98023a1448f` (16,803,695 rows). Every script verifies this hash before reading. The file isn't committed; see `analysis/README.md` for how to reproduce.
+- **Days are UTC calendar days.**
+
+| Split | Days | Use |
+|---|---|---|
+| Training | Fri 05-10, Sat 05-11, Sun 05-12, Mon 05-13, Tue 05-14 | Fitting candidates, thresholds, reference artifacts |
+| Validation | Thu 05-16 | Choosing between candidates; queueing test during development |
+| Holdout | Wed 05-15 | Evaluated exactly once, only after explicit written authorisation |
+
+**Holdout guard.** `analysis/common.py` drops Wednesday rows by their date prefix before any timestamp or token count is parsed. Reading Wednesday requires `allow_holdout=True`, which only the final evaluation script passes, behind a `--holdout` flag.
+
+**Disclosure: Wednesday isn't pristine** (ADR-0005, D1). Before this preregistration, a verification audit on 2026-09-28 computed pooled statistics over all seven days, so Wednesday's hours contributed to the earlier pooled burstiness fit, the per-band values and the day-to-day spreads reported in the audit. No Wednesday-specific result was inspected. No revised model is tuned against Wednesday.
+
+**Hours already inspected individually in the audit:** Mon 16:00, Tue 08:00, Tue 18:00, Sat 19:00 UTC. All are training days, so none is in the validation or holdout splits.
+
+**Reference artifacts.** `traffic/reference/azure_code_hourly.csv` and `azure_code_sizes.csv` were previously derived from all seven days. They are regenerated from training days only (§8), so validation uses no data derived from Wednesday.
+
+**Thursday facts already computed** (to size the test; no burstiness statistic): eligible hours per band 4 / 10 / 4 / 6; hourly rates 8.71–79.52 rps.
+
+## 2. Timestamp treatment
+
+Azure's timestamps have an unexplained 250 ms periodic structure (ADR-0005, sub-second). For every burstiness fit and every canonical validation, timestamps are **de-jittered**: each is redrawn uniformly within its 250 ms interval, using `numpy.random.default_rng(20260928)` applied to that day's sorted timestamps in order. Raw timestamps are used only for the descriptive clustered-variant comparison.
+
+## 3. Estimator
+
+This is `relay.traffic.stats.rate_cv2`, the single implementation used everywhere:
+
+- **Per-hour input:** arrivals within one UTC clock hour, counted per second (3,600 counts).
+- **Trend:** a centred 600 s moving average, padded at each end with the edge value.
+- **Windows:** W ∈ {1, 2, 5, 10, 30, 60} s. For each, sum counts and trend over consecutive W-second windows. With Z = (count − trend)/trend, compute CV²(W) = mean(Z² − 1/trend).
+- **Reporting:** the rate fluctuation at W is √max(CV², 0).
+
+**Eligible hours** have a mean rate ≥ 3 rps. **Rate bands (fit bands):** [3, 10), [10, 30), [30, 60), [60, 120) rps, assigned by the hour's mean rate.
+
+**Pooled band curve:** the element-wise median of CV²(W) over the band's eligible hours; its fluctuation curve is √max(median, 0). The **band rate** is the median of those hours' mean rates.
+
+## 4. Observed range
+
+The observed range is **[3.20, 82.83] rps**: the minimum and maximum mean rates of eligible training hours after de-jittering (119 hours). Inside this range, burstiness comes from the fitted rate relationship (AZURE-DERIVED). Outside it, burstiness comes from a pre-declared scenario (§5.3), whose values are labelled PROJECTED where they're extrapolated.
+
+Training band sizes and rates: 33 hours at a median of 7.66 rps; 54 at 15.17; 18 at 48.54; 14 at 70.75.
+
+## 5. Candidate models
+
+Both candidates are fitted on training days only, and use the same generator structure. The expected rate λ(t) is the envelope × scale, before modulation. The arrival rate is λ(t)·m(t), where m(t) = exp(s_t·X_t − s_t²/2), s_t² = ln(1 + σ(λ(t))²), and X is a unit-variance Ornstein–Uhlenbeck process updated per 0.1 s bin as X_{k+1} = a_k X_k + √(1 − a_k²) ε, with a_k = exp(−0.1/τ(λ(t_k))). Arrivals within a 0.1 s bin are placed uniformly.
+
+### 5.1 C1: power-law σ, one shared correlation time (baseline)
+1. Compute the four pooled band curves (§3).
+2. Fit a shared τ with a separate σ_b per band, in log space (`fit_shared_tau`).
+3. Fit σ(λ) = a·λ^b by least squares on (band rate, σ_b), weighted by each band's number of hours (`fit_power_law`).
+4. τ(λ) is the shared τ at every rate.
+
+### 5.2 C2: power-law σ, banded correlation time
+1. Fit each pooled band curve on its own for (σ_b, τ_b) (`fit_sigma_tau`).
+2. Fit σ(λ) = a·λ^b on (band rate, σ_b), weighted by hours.
+3. τ(λ) interpolates log τ_b linearly in log λ between band rates, and holds the end values beyond the outermost band rates.
+
+### 5.3 Outside the observed range
+Every trace whose expected rate leaves [3.20, 82.83] rps names a scenario:
+
+| Scenario | σ outside the range | τ outside the range | Role |
+|---|---|---|---|
+| `edge` | σ at the nearest range boundary | τ at that boundary | Canonical default |
+| `poisson` | 0 | n/a | Low-burst sensitivity |
+| `trend` | a·λ^b extrapolated (PROJECTED) | τ at the nearest boundary | Extrapolated sensitivity |
+
+Traces record their scenario and the fraction of time spent out of range. Generating an out-of-range trace without naming a scenario is an error. `trend` values are never presented as empirical estimates.
+
+## 6. Out-of-sample criterion
+
+### 6.1 Tolerance
+For each tolerance band: take the daily pooled curves of the training days that have at least 3 eligible hours in the band, and compute their standard deviation (ddof = 1) at each window. The band's tolerance is **2 × the maximum of that standard deviation over the six windows**.
+
+| Band | Training days used | Tolerance |
+|---|---|---|
+| 3–10 rps | Fri, Sat, Sun, Mon, Tue | **0.0985** |
+| 10–30 rps | Fri, Sat, Sun, Mon, Tue | **0.0321** |
+| 30–60 rps | Fri, Mon, Tue | **0.0146** |
+| 60–120 rps | *open item O2 (§10)* | — |
+
+### 6.2 Thursday check (per band present on Thursday)
+- **Observed:** Thursday's pooled band curve.
+- **Predicted:** for each eligible Thursday hour, the candidate's CV²_h(W) = σ(λ_h)²·ou_shape(W, τ(λ_h)), where λ_h is the hour's mean rate. Take the element-wise median across the band's hours, then the square root.
+- **Pass for the band:** |predicted − observed| ≤ tolerance at all six windows. *A second clause is open item O1 (§10).*
+- **The candidate passes Thursday** if every band present on Thursday passes.
+
+### 6.3 Rate-band holdouts (training days only)
+- For each fit band b: refit the candidate on the other three bands' training hours, predict band b's training hours as in §6.2, and compare with band b's pooled training curve, using band b's tolerance.
+- The **interpolation holdouts** (10–30 and 30–60) count toward generalization: a candidate that fails either one fails generalization.
+- The **extrapolation holdouts** (3–10 and 60–120) are reported only. A failure there is evidence against the `trend` scenario, not grounds to reject the candidate (the model isn't used outside the observed range).
+
+## 7. Queueing test
+
+**Reference hours.** All eligible Thursday hours: 24 in development. The holdout run later uses all eligible Wednesday hours.
+
+**Reference arrivals.** De-jittered Azure timestamps (§2) for the hour.
+
+**Trend.** The 600 s moving average of the reference's per-second counts (§3), held constant within each second.
+
+**Arrivals compared** (each hour):
+- **Model:** the candidate's arrivals, with expected rate equal to the trend; σ and τ evaluated at the trend (the `edge` scenario outside the range); 20 seeds.
+- **Poisson control:** the same trend with σ = 0; 20 seeds.
+- Seed for hour h and replicate r: 10,000·h + r, r = 1…20. The Poisson control uses 500,000 + 10,000·h + r.
+
+**Queue.** c identical servers, first come first served, fixed service time s, starting empty at the start of the hour.
+
+**Cells.** 24 hours × s ∈ {0.2, 1.0} s × target utilisation ρ ∈ {0.6, 0.8} = **96 cells**, with c = ceil(λ_ref · s / ρ), where λ_ref is the reference's mean rate for the hour. The actual utilisation is recorded.
+
+**Metrics per run:**
+- p50, p95 and p99 of per-request waiting time
+- fraction of requests that wait more than zero
+- peak number waiting
+- worst 60 s average wait, over 60 s windows of arrival time
+
+The model's (or control's) value for a cell is the median of its 20 runs.
+
+**Operational definitions** (fixed before any run):
+- For metric m ∈ {p95, p99}: A = Azure's value, M = the model's median, P = the control's median, thr = 0.01·s.
+- **Near-zero rule:** if A < thr and M < thr, the model agrees on m. If exactly one of A and M is below thr, the model fails on m. The same rule applies to P for the control.
+- Otherwise R_model = M/A and R_poisson = P/A.
+
+**Criteria** (all three must hold):
+1. **Band:** a cell passes if, for both p95 and p99, the model agrees (near-zero) or 0.67 ≤ R_model ≤ 1.5. At least **80%** of cells must pass.
+2. **Bounds:** no cell may have R_model < 0.5 or > 2.0 for p95 or p99. A near-zero one-sided failure where A = 0 counts as out of bounds; where A > 0, the actual ratio is used.
+3. **Beats Poisson:** a cell counts if, for both p95 and p99, the model's error |log R| is strictly smaller than the control's, where near-zero agreement counts as error 0 and near-zero failure as infinite error. Cells where both model and control agree by the near-zero rule on both metrics are **ties**. Ties are excluded from this criterion's denominator and reported. The model must beat Poisson in at least **80%** of non-tie cells.
+
+Fraction waiting, peak queue length and worst-60-second wait are **reported diagnostics**, not pass/fail criteria.
+
+## 8. Prompt-size fidelity
+
+**Evaluation trace:** `relay-trace window --start 15:00 --minutes 60 --peak-rps 8 --seed 20260928`, canonical scenario, generated from training-derived reference artifacts.
+
+**Template minimum:** the smallest prompt Relay's completion template can produce, i.e. the template with an empty code prefix and no context files, plus the 100-character minimum prefix, for the request's own IDs and path. Targets below it are **structurally below the template minimum**: kept as generated, flagged, never resampled (ADR-0005, D6).
+
+**Built size:** measured by the gateway (`X-Relay-Prompt-Chars`), running in-process against a fake inference server. It's converted to tokens at 3.5 characters per token, a temporary stand-in until Phase 3's tokenizer.
+
+**Pass/fail** (representable targets only): a two-sample Kolmogorov–Smirnov test between built sizes (in tokens) of representable completions and the training-derived Azure size sample restricted to values at or above the minimum representable size. It passes if D < 1.358·√((n+m)/(n·m)), the 5% critical value.
+
+**Reported separately:** the fraction of all targets below the template minimum; their target sizes, built sizes and inflation (built ÷ target); and the fraction of all completions whose built size differs from the generator's expected size.
+
+## 9. Sensitivity (descriptive, no pass/fail)
+
+For a canonical GPU window (the §8 spec) and a day trace (`relay-trace day --peak-rps 20 --seed 20260928`), report:
+- the fraction of time out of the observed range
+- σ over time under `edge`, `poisson` and `trend`
+- queue metrics (s ∈ {0.2, 1.0}, ρ = 0.8, 20 seeds) for the day trace's out-of-range hours under each scenario
+
+The clustered variant is compared with **raw** Thursday timestamps descriptively: gaps under 1 ms, mean cluster size and 250 ms phase uniformity. Raw Azure isn't an acceptance reference.
+
+## 10. Open items (must be resolved by amendment before any candidate validation)
+
+**O1: The sign-consistency clause** ("errors don't all share one sign across the six windows") **rejects real data.** In leave-one-day-out comparisons on training days (one day's pooled band curve against the median of the other days'), 12 of 13 comparisons had all six errors in the same direction. Day-to-day variation shifts the whole curve, so an ideal model of the population would fail this clause about 92% of the time. The magnitude clause passed 13 of 13 of the same comparisons.
+
+**O2: The 60–120 rps tolerance can't be estimated as specified.** Only Mon and Tue have ≥ 3 eligible hours in the band. The two-day standard deviation gives a tolerance of 0.0035, which can't be checked for false failures. Options evaluated on training data:
+
+| Option | Tolerance | Days | Leave-one-day-out null |
+|---|---|---|---|
+| (a) Merge 30–60 and 60–120 for tolerance: one 30–120 band used for both Thursday checks | 0.0102 | Fri, Mon, Tue | 3/3 within |
+| (b) Two-day estimate as specified | 0.0035 | Mon, Tue | Not checkable |
+| (c) Use the 30–60 tolerance for 60–120 | 0.0146 | Fri, Mon, Tue (borrowed) | n/a |
+
+## 11. Selection rule (Thursday)
+
+- If both candidates pass all Thursday criteria (§6.2, §6.3 interpolation holdouts, §7), **C1 is selected** (fewer parameters).
+- If exactly one passes, it's selected.
+- If neither passes, the candidate with the larger fraction of queueing cells meeting criterion 1 is recorded as the provisional choice, and the result is reported as "no candidate passed on Thursday." Nothing is tuned against Thursday after this point.
+
+## 12. After Thursday
+
+Results are reported in full and work stops. Wednesday runs **exactly once, only after explicit written authorisation**, with the selected candidate and every procedure exactly as written here. A failure is recorded, and it limits Phase 2's claims. There's no tuning, threshold change, model change or rerun against Wednesday (ADR-0005, D9). Any later revision is a new validation cycle, and must state that this Azure week no longer contains an unused holdout.
+
+**Merge gate:** Phase 2 stays unmerged until the preregistered Wednesday evaluation has been run exactly once and its result, pass or fail, has been documented and reviewed.
