@@ -4,7 +4,6 @@ version = "0.1.0"
 description = "Relay: an inference engineering case study"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "MIT"
 authors = [{ name = "Hamda Aden" }]
 dependencies = [
     "fastapi>=0.115",
@@ -18,11 +17,19 @@ dependencies = [
     "psutil>=6.0",
 ]
 
+[project.scripts]
+relay-corpus = "relay.corpus.fetch:main"
+relay-trace = "relay.traces.generate:main"
+relay-loadgen = "relay.loadgen.runner:main"
+relay-gateway = "relay.gateway.app:main"
+relay-worker = "relay.worker:main"
+relay-bootstrap = "relay.aws:main"
+
 [project.optional-dependencies]
 report = ["plotly>=5.24", "pandas>=2.2", "jinja2>=3.1"]
 
 [dependency-groups]
-dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.6", "mypy>=1.11"]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.6", "mypy>=1.11", "moto[sqs,dynamodb]>=5.0", "types-psutil"]
 
 [build-system]
 requires = ["hatchling"]
@@ -34,6 +41,7 @@ packages = ["src/relay"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+extend-exclude = ["data"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM", "ASYNC"]
@@ -48,3 +56,8 @@ python_version = "3.11"
 strict = true
 packages = ["relay"]
 mypy_path = "src"
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["boto3", "botocore.*", "moto"]
+ignore_missing_imports = true

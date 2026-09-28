@@ -1,6 +1,21 @@
 # Local stack for the Relay case study.
 # Everything here runs without an AWS account, an API key or a GPU.
-# The gateway, worker and load generator are added in Phase 1.
+
+x-relay: &relay
+  build: .
+  image: relay:local
+  environment: &relay-env
+    INFERENCE_BASE_URL: http://inference-sim:8000/v1
+    INFERENCE_METRICS_URL: http://inference-sim:8000/metrics
+    INFERENCE_BACKEND: sim
+    # The simulator serves one model name, so embeddings use it too. Real runs set these separately.
+    COMPLETION_MODEL: relay/code-7b
+    EMBEDDING_MODEL: relay/code-7b
+    GATEWAY_URL: http://gateway:8080
+    AWS_ENDPOINT_URL: http://floci:4566
+    AWS_REGION: us-east-1
+    AWS_ACCESS_KEY_ID: test
+    AWS_SECRET_ACCESS_KEY: test
 
 services:
   # Customer's AWS environment (S3, SQS, DynamoDB) at localhost:4566.
@@ -31,6 +46,51 @@ services:
       - --max-num-seqs=8
       - --time-factor-under-load=2.0
 
+  # Creates the indexing queue and results table, then exits.
+  bootstrap:
+    <<: *relay
+    command: ["relay-bootstrap"]
+    depends_on:
+      - floci
+    restart: on-failure
+
+  # Relay's API (decision 1B), streaming through to inference (decision 2A).
+  gateway:
+    <<: *relay
+    command: ["relay-gateway"]
+    ports:
+      - "8080:8080"
+    depends_on:
+      - inference-sim
+
+  # Repo-indexing worker with bounded concurrency (decision 6B).
+  worker:
+    <<: *relay
+    command: ["relay-worker"]
+    environment:
+      <<: *relay-env
+      WORKER_MAX_IN_FLIGHT: "8"
+    ports:
+      - "9101:9101"
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+      inference-sim:
+        condition: service_started
+
+  # Load generator: run on demand, e.g. `make run TRACE=traces/smoke.jsonl`.
+  loadgen:
+    <<: *relay
+    profiles: ["tools"]
+    command: ["relay-loadgen", "--help"]
+    volumes:
+      - ./data:/app/data:ro
+      - ./traces:/app/traces:ro
+      - ./results:/app/results
+    depends_on:
+      bootstrap:
+        condition: service_completed_successfully
+
   prometheus:
     image: prom/prometheus:v3.5.0
     ports:
@@ -39,6 +99,7 @@ services:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
       - inference-sim
+      - gateway
 
   grafana:
     image: grafana/grafana:12.1.0
