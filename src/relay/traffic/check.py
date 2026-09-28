@@ -1,11 +1,11 @@
-"""Checks that the traffic model and the traces it produces match their references.
+"""Checks on the traffic model and the traces it produces.
 
-- Envelope vs Azure (decision 1C): the model's weekday peak/trough ratio must fall
-  inside the range Azure's Mon-Thu days show.
-- Burstiness (decision 2C): a generated trace's short-timescale rate fluctuation
-  must match the Azure fit it was generated from.
-- Sizes (decision 3B): how often a completion prompt falls short of its target
-  because no corpus file is long enough.
+- Envelope (ADR-0004 1C): the model's weekday peak/trough ratio must fall inside the
+  range of Azure's training weekdays. A plausibility check on one number, not evidence
+  that Relay's daily shape matches Azure's.
+- Burstiness: the rate-fluctuation statistic (relay.traffic.stats) of generated traffic.
+- Prompt sizes (ADR-0005 D5): built prompt sizes against targets, with structurally
+  below-minimum targets reported separately.
 """
 
 from __future__ import annotations
@@ -19,10 +19,11 @@ import numpy as np
 
 from relay.traces.schema import CompletionRequest, TraceRequest
 from relay.traffic.model import TrafficModel
+from relay.traffic.stats import WINDOWS_S, rate_cv2
 
-WEEKDAYS = ("Mon", "Tue", "Wed", "Thu")  # Fri is a partial day in the Azure sample
-DETREND_WINDOW_S = 600
-WINDOWS_S = (1, 2, 5, 10, 30, 60)
+# Weekdays in the training split (Fri 05-10, Mon 05-13, Tue 05-14); the reference
+# hourly file holds training days only (preregistration §1).
+WEEKDAYS = ("Fri", "Mon", "Tue")
 
 
 @dataclass
@@ -64,31 +65,53 @@ def check_envelope(model: TrafficModel, hourly_csv: Path) -> EnvelopeCheck:
 def rate_cv_by_window(
     times_s: np.ndarray, duration_s: float, windows_s: Sequence[int] = WINDOWS_S
 ) -> dict[int, float]:
-    """Relative fluctuation of the arrival *rate* per window size, Poisson noise removed.
-
-    Same estimator as analysis/azure_traffic.py: counts per second against a
-    10-minute moving-average trend; for window W, Var((c - e) / e) - 1/e.
-    """
-    n_s = int(duration_s)
-    per_s = np.bincount(times_s.astype(int), minlength=n_s)[:n_s].astype(float)
-    k = min(DETREND_WINDOW_S, n_s)
-    pad = np.pad(per_s, (k // 2, k - k // 2 - 1), mode="edge")
-    trend = np.convolve(pad, np.ones(k) / k, mode="valid")
-    out = {}
-    for w in windows_s:
-        n = n_s // w
-        c = per_s[: n * w].reshape(n, w).sum(axis=1)
-        e = trend[: n * w].reshape(n, w).sum(axis=1)
-        ok = e > 0
-        z2 = ((c[ok] - e[ok]) / e[ok]) ** 2 - 1.0 / e[ok]
-        out[w] = float(np.sqrt(max(np.mean(z2), 0.0)))
-    return out
+    """Relative rate fluctuation per window (the shared estimator), as a dict."""
+    cv2 = rate_cv2(times_s, int(duration_s), windows_s)
+    return {w: float(np.sqrt(max(c, 0.0))) for w, c in zip(windows_s, cv2, strict=True)}
 
 
-def prompt_shortfall(requests: Sequence[TraceRequest]) -> float:
-    """Fraction of completions whose prefix couldn't reach its target length."""
+@dataclass
+class PromptSizeReport:
+    completions: int
+    below_minimum: int
+    below_minimum_fraction: float
+    expected_mismatch: int  # built size differs from the generator's expected size
+    below_minimum_inflation: list[float]  # built / target, for below-minimum targets
+
+
+def prompt_size_report(
+    requests: Sequence[TraceRequest], built_chars: dict[str, int], chars_per_token: float
+) -> PromptSizeReport:
     comps = [r for r in requests if isinstance(r, CompletionRequest)]
-    if not comps:
-        return 0.0
-    short = sum(r.cursor < r.prefix_chars for r in comps)
-    return short / len(comps)
+    below = [r for r in comps if r.below_template_minimum]
+    inflation = [
+        built_chars[r.req_id] / (r.target_prompt_tokens * chars_per_token)
+        for r in below
+        if r.target_prompt_tokens and r.req_id in built_chars
+    ]
+    mismatch = sum(
+        1
+        for r in comps
+        if r.req_id in built_chars and built_chars[r.req_id] != r.expected_prompt_chars
+    )
+    return PromptSizeReport(
+        completions=len(comps),
+        below_minimum=len(below),
+        below_minimum_fraction=len(below) / len(comps) if comps else 0.0,
+        expected_mismatch=mismatch,
+        below_minimum_inflation=inflation,
+    )
+
+
+def ks_statistic(a: np.ndarray, b: np.ndarray) -> float:
+    """Two-sample Kolmogorov-Smirnov distance."""
+    a, b = np.sort(a), np.sort(b)
+    v = np.concatenate([a, b])
+    fa = np.searchsorted(a, v, side="right") / len(a)
+    fb = np.searchsorted(b, v, side="right") / len(b)
+    return float(np.max(np.abs(fa - fb)))
+
+
+def ks_critical(n: int, m: int, c_alpha: float = 1.358) -> float:
+    """Asymptotic two-sample KS critical value (c_alpha = 1.358 for alpha = 0.05)."""
+    return float(c_alpha * np.sqrt((n + m) / (n * m)))

@@ -106,6 +106,15 @@ async def test_completion_streams_through_and_builds_prompt() -> None:
     )
 
 
+async def test_gateway_reports_built_prompt_size() -> None:
+    fake = create_fake_inference()
+    app, client = _gateway(fake)
+    async with client:
+        resp = await client.post("/v1/complete", json=COMPLETE)
+    assert int(resp.headers["X-Relay-Prompt-Chars"]) == len(fake.state.requests[0]["prompt"])
+    assert _metric(app, "relay_gateway_prompt_chars_count", {"workload": "completion"}) == 1
+
+
 async def test_agent_sends_tools_and_messages() -> None:
     fake = create_fake_inference()
     app, client = _gateway(fake)

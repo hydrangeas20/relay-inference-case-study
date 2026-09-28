@@ -12,7 +12,6 @@ and `window` use Relay's traffic model (relay.traffic, ADR-0004).
 from __future__ import annotations
 
 import argparse
-import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -21,6 +20,7 @@ import numpy as np
 from relay.config import get_settings
 from relay.corpus.manifest import load_lock
 from relay.corpus.store import Corpus, CorpusFile, load_corpus
+from relay.traces import identity
 from relay.traces.io import write_trace
 from relay.traces.schema import (
     AgentRequest,
@@ -139,18 +139,17 @@ def generate(corpus: Corpus, params: GeneratorParams) -> list[TraceRequest]:
 
 
 def build_header(corpus: Corpus, params: GeneratorParams, n_requests: int) -> TraceHeader:
-    # The trace id is derived from the inputs so the same inputs give an identical file.
-    trace_id = uuid.uuid5(
-        uuid.NAMESPACE_URL, f"relay-trace:{corpus.sha256}:{sorted(asdict(params).items())}"
-    ).hex[:12]
+    spec = {"generator": "poisson-constant-v1", **asdict(params), "corpus_sha256": corpus.sha256}
     return TraceHeader(
-        trace_id=trace_id,
+        trace_id="",  # set from the request lines when the trace is written (identity.py)
         seed=params.seed,
         duration_s=params.duration_s,
         n_requests=n_requests,
         corpus_sha256=corpus.sha256,
         generator="poisson-constant-v1",
         params=asdict(params),
+        spec_id=identity.spec_id(spec),
+        generator_sha256=identity.generator_sha256(),
     )
 
 
@@ -178,6 +177,17 @@ def main(argv: list[str] | None = None) -> None:
             required=True,
             help="interactive requests/second at Relay's daily peak, after scaling",
         )
+        p.add_argument(
+            "--scenario",
+            choices=("edge", "poisson", "trend"),
+            help="burstiness outside Azure's observed rate range (required if the trace "
+            "leaves it; canonical traces use edge)",
+        )
+        p.add_argument(
+            "--clustered",
+            action="store_true",
+            help="sub-second clustering sensitivity variant (not canonical)",
+        )
     for p in (const, day, window):
         p.add_argument("--seed", type=int, required=True)
         p.add_argument("--out", type=Path, required=True)
@@ -194,21 +204,34 @@ def main(argv: list[str] | None = None) -> None:
         from relay.traffic.model import load_model
 
         model = load_model(settings.traffic_model)
+        common = {
+            "peak_rps": args.peak_rps,
+            "seed": args.seed,
+            "scenario": args.scenario,
+            "clustered": args.clustered,
+        }
         if args.kind == "day":
-            spec = TraceSpec(kind="day", peak_rps=args.peak_rps, seed=args.seed)
+            spec = TraceSpec(kind="day", **common)
         else:
             spec = TraceSpec(
                 kind="window",
-                peak_rps=args.peak_rps,
-                seed=args.seed,
                 start_utc_s=_hhmm_to_s(args.start),
                 duration_s=args.minutes * 60,
+                **common,
             )
         header, requests = generate_traffic(model, corpus, spec)
     digest = write_trace(args.out, header, requests)
-    print(f"wrote {len(requests)} requests to {args.out} (sha256 {digest})")
+    print(f"wrote {len(requests)} requests to {args.out} (file sha256 {digest})")
     if header.scale is not None:
-        print(f"represents {header.params['users_represented']} of Relay's daily active users")
+        hp = header.params
+        print(
+            f"carries the volume of {hp['users_represented']} of Relay's daily active users "
+            "(daily-user equivalents, not concurrent users)"
+        )
+        print(
+            f"burstiness {hp['burstiness_candidate']}, {hp['out_of_range_fraction']:.1%} of time "
+            f"outside Azure's observed range (scenario: {hp['scenario']})"
+        )
 
 
 if __name__ == "__main__":

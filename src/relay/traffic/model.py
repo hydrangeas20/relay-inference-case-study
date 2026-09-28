@@ -1,12 +1,13 @@
 """Relay's traffic model: when requests arrive, how bursty they are, and how big.
 
-Three layers (ADR-0004):
-  1. Envelope: the weekday 24-hour shape (decision 1C), in requests/second at full scale.
-  2. Burstiness: a Cox process. The envelope rate is multiplied by exp(X - s^2/2),
-     where X is an Ornstein-Uhlenbeck process fitted to Azure's code trace (2C).
-     The multiplier is relative, so it survives scaling down to one GPU.
-  3. Sizes: completion prompt/output lengths resampled from Azure (3B); agent and
-     indexing sizes are Relay assumptions.
+Three layers (ADR-0004, amended by ADR-0005):
+  1. Envelope: the weekday 24-hour shape (ASSUMED, plausibility-checked against Azure).
+  2. Burstiness: a Cox process whose relative fluctuation depends on the trace's own
+     expected rate inside Azure's observed range, and on a named scenario outside it
+     (relay.traffic.burstiness). An optional clustered variant adds sub-second
+     clustering for sensitivity analysis (relay.traffic.clustering).
+  3. Sizes: completion prompt/output token targets resampled from Azure (training days);
+     agent and indexing sizes are Relay assumptions.
 """
 
 from __future__ import annotations
@@ -14,12 +15,14 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
-import math
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+
+from relay.traffic.burstiness import BurstinessModel, load_candidate
+from relay.traffic.clustering import ClusteringModel, load_clustering
 
 SECONDS_PER_DAY = 86_400
 
@@ -33,12 +36,6 @@ class Region:
 
 
 @dataclass(frozen=True)
-class Burstiness:
-    rate_relative_std: float
-    correlation_time_s: float
-
-
-@dataclass(frozen=True)
 class TrafficModel:
     daily_active_users: int
     active_hours_per_day: float
@@ -46,7 +43,8 @@ class TrafficModel:
     agent_turns_per_active_hour: float
     floor: float
     regions: tuple[Region, ...]
-    burstiness: Burstiness
+    burstiness: BurstinessModel
+    clustering: ClusteringModel
     indexing_jobs_per_day: int
     indexing_window_start_utc_h: float
     indexing_window_minutes: float
@@ -114,22 +112,6 @@ class TrafficModel:
         hours: np.ndarray = self.shape(t).reshape(24, 360).mean(axis=1)
         return hours
 
-    # --- burstiness ---------------------------------------------------------------
-
-    def modulation(self, n_bins: int, dt_s: float, rng: np.random.Generator) -> np.ndarray:
-        """Rate multiplier with mean 1, relative std and correlation time from the fit."""
-        cv = self.burstiness.rate_relative_std
-        s2 = math.log1p(cv * cv)  # lognormal: Var(exp(X)) / E^2 = e^{s^2} - 1 = cv^2
-        s = math.sqrt(s2)
-        a = math.exp(-dt_s / self.burstiness.correlation_time_s)
-        noise = rng.standard_normal(n_bins) * s * math.sqrt(1.0 - a * a)
-        x = np.empty(n_bins)
-        x[0] = rng.standard_normal() * s
-        for i in range(1, n_bins):  # AR(1) recursion; exact OU discretisation
-            x[i] = a * x[i - 1] + noise[i]
-        result: np.ndarray = np.exp(x - s2 / 2.0)
-        return result
-
 
 def _range(v: list[int]) -> tuple[int, int]:
     lo, hi = int(v[0]), int(v[1])
@@ -143,11 +125,12 @@ def load_model(config_path: Path, root: Path | None = None) -> TrafficModel:
     raw = config_path.read_bytes()
     cfg = tomllib.loads(raw.decode())
     burst_path = root / cfg["burstiness"]["reference"]
+    cluster_path = root / cfg["burstiness"]["clustering_reference"]
     sizes_path = root / cfg["sizes"]["completion_reference"]
 
     digest = hashlib.sha256(raw)
-    digest.update(burst_path.read_bytes())
-    digest.update(sizes_path.read_bytes())
+    for path in (burst_path, cluster_path, sizes_path):
+        digest.update(path.read_bytes())
 
     burst = json.loads(burst_path.read_text())
     with sizes_path.open() as f:
@@ -172,10 +155,8 @@ def load_model(config_path: Path, root: Path | None = None) -> TrafficModel:
         agent_turns_per_active_hour=float(cfg["rates"]["agent_turns_per_active_hour"]),
         floor=floor,
         regions=regions,
-        burstiness=Burstiness(
-            rate_relative_std=float(burst["rate_relative_std"]),
-            correlation_time_s=float(burst["correlation_time_s"]),
-        ),
+        burstiness=load_candidate(burst, str(cfg["burstiness"]["candidate"])),
+        clustering=load_clustering(json.loads(cluster_path.read_text())),
         indexing_jobs_per_day=int(ix["jobs_per_day"]),
         indexing_window_start_utc_h=float(ix["window_start_utc_h"]),
         indexing_window_minutes=float(ix["window_minutes"]),

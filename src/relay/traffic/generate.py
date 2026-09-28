@@ -4,22 +4,27 @@
 - window: a short slice (e.g. the morning peak) for real-GPU runs.
 
 Both are scaled by one number: the interactive request rate at Relay's daily peak
-after scaling (`peak_rps`). The trace header records the resulting scale, i.e. the
-fraction of Relay's 400K daily users the trace represents.
+after scaling (`peak_rps`). The trace header records the resulting scale and the
+number of Relay's daily active users whose volume the trace carries (daily-user
+equivalents, not concurrent users).
+
+Burstiness depends on the trace's own expected rate (relay.traffic.burstiness). A trace
+whose rate leaves Azure's observed range must name a scenario. Completion prompts are
+built to their target size using the gateway's own template (ADR-0005 D5).
 """
 
 from __future__ import annotations
 
 import bisect
 import math
-import uuid
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 import numpy as np
 
 from relay.corpus.store import Corpus, CorpusFile
 from relay.gateway import templates
 from relay.prompts import CONTEXT_FILE_CHARS
+from relay.traces import identity
 from relay.traces.generate import N_AGENT_QUESTIONS
 from relay.traces.schema import (
     AgentRequest,
@@ -29,13 +34,15 @@ from relay.traces.schema import (
     TraceHeader,
     TraceRequest,
 )
+from relay.traffic.burstiness import SCENARIOS, Scenario, modulation
+from relay.traffic.clustering import cluster
 from relay.traffic.model import SECONDS_PER_DAY, TrafficModel
 
-BIN_S = 0.1  # arrival-rate resolution; well below the 8.5 s burst correlation time
+BIN_S = 0.1  # arrival-rate resolution; well below the fitted correlation times (7-12 s)
 MIN_PREFIX_CHARS = 100
 
-# Characters the gateway's completion template adds around the code (header, system
-# prompt, labels), so the traffic model's prompt size covers the whole prompt.
+# Typical template overhead, used only for a first guess at the file size needed; the
+# exact overhead for each request is computed from the gateway's template.
 PROMPT_OVERHEAD_CHARS = len(
     templates.completion_prompt(
         request_id="r0000000",
@@ -56,8 +63,12 @@ class TraceSpec:
     seed: int
     start_utc_s: float = 0.0
     duration_s: float = SECONDS_PER_DAY
+    scenario: Scenario | None = None  # required if the trace leaves the observed range
+    clustered: bool = False  # sub-second clustering sensitivity variant
 
     def validate(self) -> None:
+        if self.scenario is not None and self.scenario not in SCENARIOS:
+            raise ValueError(f"scenario must be one of {SCENARIOS}")
         if self.kind not in ("day", "window"):
             raise ValueError("kind must be 'day' or 'window'")
         if self.peak_rps <= 0 or self.duration_s <= 0:
@@ -76,8 +87,11 @@ class _Files:
         self.by_len = sorted(corpus.files, key=lambda f: len(f.text))
         self.lengths = [len(f.text) for f in self.by_len]
         self.by_repo: dict[str, list[CorpusFile]] = {}
+        self.full_context: dict[str, list[CorpusFile]] = {}
         for f in corpus.files:
             self.by_repo.setdefault(f.repo, []).append(f)
+            if len(f.text) >= CONTEXT_FILE_CHARS:
+                self.full_context.setdefault(f.repo, []).append(f)
 
     def at_least(self, rng: np.random.Generator, n_chars: int) -> CorpusFile:
         """A random file with at least n_chars, or the longest file if none is that long."""
@@ -87,24 +101,48 @@ class _Files:
         return self.by_len[int(rng.integers(i, len(self.by_len)))]
 
 
+@dataclass(frozen=True)
+class Arrivals:
+    times: np.ndarray  # seconds after trace start, sorted
+    is_completion: np.ndarray
+    out_of_range_fraction: float  # share of time bins outside Azure's observed range
+
+
+def cox_arrivals(
+    model: TrafficModel,
+    lam: np.ndarray,
+    rng: np.random.Generator,
+    scenario: Scenario | None,
+    duration_s: float,
+) -> np.ndarray:
+    """Arrival times for expected rates `lam` (requests/s per BIN_S bin), canonical form."""
+    expected = lam * modulation(model.burstiness, lam, BIN_S, rng, scenario) * BIN_S
+    counts = rng.poisson(expected)
+    bins = np.repeat(np.arange(len(lam)), counts)
+    times = np.sort((bins + rng.random(len(bins))) * BIN_S)
+    result: np.ndarray = times[times < duration_s]
+    return result
+
+
 def arrival_times(
     model: TrafficModel, spec: TraceSpec, scale: float, rng: np.random.Generator
-) -> tuple[np.ndarray, np.ndarray]:
-    """Interactive arrivals: (times relative to trace start, is_completion flags)."""
+) -> Arrivals:
+    """Interactive arrivals for a trace spec."""
     n_bins = math.ceil(spec.duration_s / BIN_S)
     mid = spec.start_utc_s + (np.arange(n_bins) + 0.5) * BIN_S
     rates = model.interactive_rate_rps(mid)
-    total = (rates["completion"] + rates["agent"]) * scale
+    lam = (rates["completion"] + rates["agent"]) * scale
     p_completion = rates["completion"] / (rates["completion"] + rates["agent"])
-    expected = total * model.modulation(n_bins, BIN_S, rng) * BIN_S
-    counts = rng.poisson(expected)
-    bins = np.repeat(np.arange(n_bins), counts)
-    times = (bins + rng.random(len(bins))) * BIN_S
-    order = np.argsort(times, kind="stable")
-    times, bins = times[order], bins[order]
-    keep = times < spec.duration_s
-    times, bins = times[keep], bins[keep]
-    return times, rng.random(len(times)) < p_completion[bins]
+    times = cox_arrivals(model, lam, rng, spec.scenario, spec.duration_s)
+    if spec.clustered:
+        at_bin = np.minimum((times / BIN_S).astype(int), n_bins - 1)
+        times, _ = cluster(model.clustering, times, lam[at_bin], rng, spec.duration_s)
+    at_bin = np.minimum((times / BIN_S).astype(int), n_bins - 1)
+    return Arrivals(
+        times=times,
+        is_completion=rng.random(len(times)) < p_completion[at_bin],
+        out_of_range_fraction=model.burstiness.out_of_range_fraction(lam),
+    )
 
 
 def indexing_times(
@@ -122,23 +160,52 @@ def indexing_times(
     return np.sort(rng.uniform(max(w0, t0), min(w1, t1), n)) - t0
 
 
+def template_overhead_chars(req_id: str, f: CorpusFile, ctx: list[CorpusFile]) -> int:
+    """Exact length of the gateway's completion prompt for these inputs with an empty prefix.
+
+    The code prefix is appended last, so the built prompt is this plus the prefix length.
+    """
+    return len(
+        templates.completion_prompt(
+            request_id=req_id,
+            repo=f.repo,
+            file_path=f.path,
+            language=f.language,
+            prefix="",
+            context_files=[(c.path, c.text[:CONTEXT_FILE_CHARS]) for c in ctx],
+        )
+    )
+
+
 def _completion(
     model: TrafficModel, files: _Files, rng: np.random.Generator, req_id: str, t: float
 ) -> CompletionRequest:
+    """A completion built to its Azure-derived target size (template-aware, ADR-0005 D5)."""
     ctx_tok, gen_tok = model.completion_sizes[int(rng.integers(len(model.completion_sizes)))]
-    target_chars = int(ctx_tok * model.chars_per_token)
-    budget = target_chars - PROMPT_OVERHEAD_CHARS - MIN_PREFIX_CHARS
-    per_ctx = CONTEXT_FILE_CHARS + CONTEXT_FILE_OVERHEAD_CHARS
+    target_chars = round(int(ctx_tok) * model.chars_per_token)
     lo, hi = model.completion_context_files
-    n_ctx = min(int(rng.integers(lo, hi + 1)), max(0, budget // per_ctx))
-    prefix = max(MIN_PREFIX_CHARS, target_chars - PROMPT_OVERHEAD_CHARS - n_ctx * per_ctx)
-    f = files.at_least(rng, prefix)
-    cursor = int(rng.integers(min(prefix, len(f.text)), len(f.text) + 1))
-    same_repo = [c for c in files.by_repo[f.repo] if c.path != f.path]
-    n_ctx = min(n_ctx, len(same_repo))
-    ctx_idx: list[int] = (
-        [int(j) for j in rng.choice(len(same_repo), size=n_ctx, replace=False)] if n_ctx else []
-    )
+    draw = int(rng.integers(lo, hi + 1))
+    per_ctx = CONTEXT_FILE_CHARS + CONTEXT_FILE_OVERHEAD_CHARS
+    need = max(MIN_PREFIX_CHARS, target_chars - PROMPT_OVERHEAD_CHARS - draw * per_ctx)
+    for _ in range(3):
+        f = files.at_least(rng, need)
+        cands = [c for c in files.full_context.get(f.repo, []) if c.path != f.path]
+        n_ctx = min(draw, len(cands))
+        ctx = (
+            [cands[int(j)] for j in rng.choice(len(cands), size=n_ctx, replace=False)]
+            if n_ctx
+            else []
+        )
+        overhead = template_overhead_chars(req_id, f, ctx)
+        while ctx and target_chars - overhead < MIN_PREFIX_CHARS:
+            ctx = ctx[:-1]  # drop context files the target can't accommodate
+            overhead = template_overhead_chars(req_id, f, ctx)
+        need = max(MIN_PREFIX_CHARS, target_chars - overhead)
+        if len(f.text) >= need:
+            break
+    below_min = target_chars - overhead < MIN_PREFIX_CHARS
+    prefix = min(need, len(f.text))
+    cursor = int(rng.integers(prefix, len(f.text) + 1))
     s_lo, s_hi = model.completion_suffix_chars
     return CompletionRequest(
         req_id=req_id,
@@ -147,10 +214,12 @@ def _completion(
         cursor=cursor,
         prefix_chars=prefix,
         suffix_chars=int(rng.integers(s_lo, s_hi + 1)),
-        context_files=[FileRef(repo=same_repo[j].repo, path=same_repo[j].path) for j in ctx_idx],
+        context_files=[FileRef(repo=c.repo, path=c.path) for c in ctx],
         max_tokens=max(1, int(gen_tok)),
         target_prompt_tokens=max(1, int(ctx_tok)),
         target_output_tokens=max(1, int(gen_tok)),
+        expected_prompt_chars=overhead + prefix,
+        below_template_minimum=below_min,
     )
 
 
@@ -192,12 +261,12 @@ def generate_traffic(
     spec.validate()
     rng = np.random.default_rng(spec.seed)
     scale = spec.peak_rps / model.peak_interactive_rps()
-    times, is_completion = arrival_times(model, spec, scale, rng)
+    arrivals = arrival_times(model, spec, scale, rng)
     idx_times = indexing_times(model, spec, scale, rng)
 
     events = [
         (float(t), "completion" if c else "agent")
-        for t, c in zip(times, is_completion, strict=True)
+        for t, c in zip(arrivals.times, arrivals.is_completion, strict=True)
     ]
     events += [(float(t), "indexing") for t in idx_times]
     events.sort(key=lambda e: e[0])
@@ -217,23 +286,33 @@ def generate_traffic(
         "peak_rps": spec.peak_rps,
         "users_represented": round(model.daily_active_users * scale, 1),
         "bin_s": BIN_S,
-        "prompt_overhead_chars": PROMPT_OVERHEAD_CHARS,
+        "burstiness_candidate": model.burstiness.name,
+        "observed_range_rps": [model.burstiness.rate_min, model.burstiness.rate_max],
+        "scenario": spec.scenario,
+        "out_of_range_fraction": round(arrivals.out_of_range_fraction, 6),
+        "clustered": spec.clustered,
+        "chars_per_token": model.chars_per_token,
+        "min_prefix_chars": MIN_PREFIX_CHARS,
     }
-    trace_id = uuid.uuid5(
-        uuid.NAMESPACE_URL,
-        f"relay-traffic:{corpus.sha256}:{model.sha256}:{spec}",
-    ).hex[:12]
+    spec_fields = {
+        "generator": "relay-traffic-v2",
+        **asdict(spec),
+        "corpus_sha256": corpus.sha256,
+        "traffic_model_sha256": model.sha256,
+    }
     header = TraceHeader(
-        trace_id=trace_id,
+        trace_id="",  # content-addressed; set when the trace is written (identity.py)
         seed=spec.seed,
         duration_s=spec.duration_s,
         n_requests=len(requests),
         corpus_sha256=corpus.sha256,
-        generator="relay-traffic-v1",
+        generator="relay-traffic-v2",
         params=params,
         kind=spec.kind,
         start_utc_s=spec.start_utc_s,
         scale=scale,
         traffic_model_sha256=model.sha256,
+        spec_id=identity.spec_id(spec_fields),
+        generator_sha256=identity.generator_sha256(),
     )
     return header, requests

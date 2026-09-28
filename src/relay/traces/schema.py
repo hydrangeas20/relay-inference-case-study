@@ -12,8 +12,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
-TRACE_FORMAT_VERSION = 2
-SUPPORTED_FORMAT_VERSIONS = (1, 2)
+TRACE_FORMAT_VERSION = 3
+SUPPORTED_FORMAT_VERSIONS = (1, 2, 3)
 
 
 class FileRef(BaseModel):
@@ -33,10 +33,14 @@ class CompletionRequest(BaseModel):
     suffix_chars: int = Field(ge=0)
     context_files: list[FileRef] = Field(default_factory=list)
     max_tokens: int = Field(gt=0)
-    # Sizes the traffic model asked for, in tokens (format v2). The prompt actually
-    # built can fall short if the chosen file is too small; analysis compares the two.
+    # Sizes the traffic model asked for, in tokens (format v2).
     target_prompt_tokens: int | None = Field(default=None, gt=0)
     target_output_tokens: int | None = Field(default=None, gt=0)
+    # Format v3 (ADR-0005 D5): the exact length, in characters, of the prompt the gateway
+    # will build for this request, and whether the target is structurally below the
+    # smallest prompt Relay's template can produce (kept as generated, never resampled).
+    expected_prompt_chars: int | None = Field(default=None, gt=0)
+    below_template_minimum: bool = False
 
 
 class AgentRequest(BaseModel):
@@ -80,3 +84,7 @@ class TraceHeader(BaseModel):
     start_utc_s: float = 0.0  # seconds after midnight UTC that send_at_s = 0 corresponds to
     scale: float | None = None  # fraction of Relay's full traffic this trace represents
     traffic_model_sha256: str | None = None
+    # Format v3: identity (ADR-0005 D7, relay.traces.identity). In v3, trace_id is the
+    # SHA-256 of the request lines; in v1/v2 it was derived from the spec (legacy).
+    spec_id: str | None = None
+    generator_sha256: str | None = None

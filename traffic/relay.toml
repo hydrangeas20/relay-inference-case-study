@@ -17,9 +17,9 @@ agent_turns_per_active_hour = 4    # ASSUMPTION
 # Weekday 24-hour shape: an overnight floor plus one workday wave per region,
 # as Gaussian bumps in UTC. Weekends are not modelled yet.
 [envelope]
-floor = 0.10                    # fraction of peak left overnight; tuned so the hourly
-                                # peak/trough ratio (9.6x) sits inside Azure's
-                                # Mon-Thu range (9.1x-11.3x, AZURE)
+floor = 0.10                    # fraction of peak left overnight; the hourly peak/trough
+                                # ratio (9.6x, CALCULATED) sits inside Azure's range on the
+                                # training weekdays Fri/Mon/Tue (8.6x-11.3x, AZURE)
 
 [[envelope.region]]
 name = "north_america"
@@ -33,9 +33,11 @@ share = 0.4                     # ASSUMPTION
 center_utc_h = 12.0             # ASSUMPTION: ~1-2 p.m. Central European
 width_h = 2.5                   # ASSUMPTION
 
-# Minute-to-minute burstiness on top of the envelope (decision 2C).
+# Minute-to-minute burstiness on top of the envelope (ADR-0005 D1).
 [burstiness]
-reference = "traffic/reference/azure_code_burstiness.json"   # AZURE fit
+reference = "traffic/reference/azure_code_burstiness.json"   # AZURE fits, training days
+clustering_reference = "traffic/reference/azure_code_clustering.json"   # AZURE, clustered variant
+candidate = "C1"                # PROVISIONAL until Thursday selection (preregistration §11)
 
 # Nightly repo indexing (RLY-7). Jobs are enqueued in a batch window.
 [indexing]
@@ -47,8 +49,8 @@ chunk_chars = 1_500             # ASSUMPTION
 
 # Request sizes (decision 3B).
 [sizes]
-completion_reference = "traffic/reference/azure_code_sizes.csv"   # AZURE
-chars_per_token = 3.5           # ASSUMPTION until the model's tokenizer is chosen (Phase 3)
+completion_reference = "traffic/reference/azure_code_sizes.csv"   # AZURE, training days
+chars_per_token = 3.5           # ASSUMPTION, TEMPORARY: replaced by the tokenizer in Phase 3
 completion_context_files = [0, 2]    # ASSUMPTION, capped by the prompt budget
 completion_suffix_chars = [0, 1_500] # ASSUMPTION (suffix is unused until FIM, ADR-0003 Q4)
 agent_context_chars = [2_000, 8_000] # ASSUMPTION

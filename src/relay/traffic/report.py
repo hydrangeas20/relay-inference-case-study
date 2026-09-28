@@ -1,10 +1,16 @@
-"""Print the traffic model's checks against the Azure reference data.
+"""`make traffic-check`: in-sample consistency checks of the traffic model.
 
-Usage: uv run python -m relay.traffic.report [--peak-rps 300] [--seed 1]
+Usage: uv run python -m relay.traffic.report [--seeds 5]
 
-Generates an hour of arrivals around Relay's peak (at a high rate so the statistics
-are stable) and compares its burstiness with the Azure fit; checks the envelope's
-peak/trough ratio against Azure's weekdays. Exits non-zero if a check fails.
+1. Envelope: the weekday peak/trough ratio against Azure's training weekdays
+   (a plausibility check on one number).
+2. Burstiness, in-sample: for each Azure rate band, generate one hour of canonical
+   traffic at the band's median rate and compare its rate-fluctuation curve with the
+   band's pooled curve from the *training* days (SIMULATED vs AZURE-DERIVED). This shows
+   the generator implements the fitted model; it is not out-of-sample validation, which
+   is preregistered separately (docs/validation/phase-2-preregistration.md).
+
+Exits non-zero if a check with a defined tolerance fails.
 """
 
 from __future__ import annotations
@@ -16,54 +22,61 @@ import sys
 import numpy as np
 
 from relay.config import get_settings
-from relay.traffic.check import check_envelope, rate_cv_by_window
-from relay.traffic.generate import TraceSpec, arrival_times
+from relay.traffic.check import check_envelope
+from relay.traffic.generate import BIN_S, cox_arrivals
 from relay.traffic.model import load_model
+from relay.traffic.stats import WINDOWS_S, rate_cv2
 
-BURSTINESS_TOLERANCE = 0.03  # absolute difference in rate CV at each window size
+BAND_TOLERANCE_KEYS = ("3-10", "10-30", "30-60", "60-120")
 
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--peak-rps", type=float, default=300.0)
-    parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument("--seeds", type=int, default=5)
     args = parser.parse_args(argv)
 
     settings = get_settings()
     model = load_model(settings.traffic_model)
     root = settings.traffic_model.parent
+    reference = json.loads((root / "reference" / "azure_code_burstiness.json").read_text())
     ok = True
 
     env = check_envelope(model, root / "reference" / "azure_code_hourly.csv")
     ok &= env.passed
     print(f"envelope: {'PASS' if env.passed else 'FAIL'}")
-    print(f"  peak/trough {env.model_peak_to_trough}x "
-          f"(Azure Mon-Thu {env.azure_weekday_min}x-{env.azure_weekday_max}x)")  # fmt: skip
     print(
-        f"  peak hour {env.model_peak_hour_utc}:00 UTC, trough {env.model_trough_hour_utc}:00 UTC"
+        f"  peak/trough {env.model_peak_to_trough}x (CALCULATED); Azure training weekdays "
+        f"{env.azure_weekday_min}x-{env.azure_weekday_max}x (AZURE-DERIVED)"
     )
-    print(f"  full-scale peak {model.peak_interactive_rps():.0f} interactive rps")
+    print(f"  smooth-curve peak {model.peak_interactive_rps():.0f} interactive rps (CALCULATED)")
 
-    peak_h = int(np.argmax(model.hourly_shape()))
-    spec = TraceSpec(
-        kind="window",
-        peak_rps=args.peak_rps,
-        seed=args.seed,
-        start_utc_s=peak_h * 3600 - 1800,
-        duration_s=3600,
+    b = model.burstiness
+    print(
+        f"burstiness {b.name}: sigma = {b.a:.4f} * rate^{b.b:.4f} "
+        f"within {b.rate_min}-{b.rate_max} rps (AZURE-DERIVED, training days)"
     )
-    scale = spec.peak_rps / model.peak_interactive_rps()
-    times, _ = arrival_times(model, spec, scale, np.random.default_rng(args.seed))
-    generated = rate_cv_by_window(times, spec.duration_s)
-    reference = json.loads((root / "reference" / "azure_code_burstiness.json").read_text())
-    print("burstiness (relative rate fluctuation by window):")
-    for row in reference["fit"]:
-        w = int(row["window_s"])
-        diff = abs(generated[w] - row["observed_rate_cv"])
-        passed = diff <= BURSTINESS_TOLERANCE
-        ok &= passed
-        print(f"  {w:>3}s  generated {generated[w]:.3f}  Azure {row['observed_rate_cv']:.3f}"
-              f"  {'PASS' if passed else 'FAIL'}")  # fmt: skip
+    print(
+        "  in-sample: generated (mean of seeds) vs training pooled curve, windows", list(WINDOWS_S)
+    )
+    for band, key in zip(reference["bands"], BAND_TOLERANCE_KEYS, strict=True):
+        rate = float(band["median_rate"])
+        lam = np.full(int(3600 / BIN_S), rate)
+        curves = []
+        for seed in range(1, args.seeds + 1):
+            t = cox_arrivals(model, lam, np.random.default_rng(seed), None, 3600.0)
+            curves.append(rate_cv2(t, 3600))
+        generated = np.sqrt(np.clip(np.mean(curves, axis=0), 0, None))
+        observed = np.asarray(band["pooled_cv"])
+        diff = float(np.max(np.abs(generated - observed)))
+        tol_entry = reference["tolerances"].get(key)
+        tol = tol_entry["tolerance"] if tol_entry and len(tol_entry["days"]) >= 3 else None
+        if tol is None:
+            verdict = "no tolerance (pending O2)"
+        else:
+            passed = diff <= tol
+            ok &= passed
+            verdict = f"{'PASS' if passed else 'FAIL'} (tolerance {tol})"
+        print(f"  {key:>6} rps at {rate:6.2f}: max |diff| {diff:.4f}  {verdict}")
     sys.exit(0 if ok else 1)
 
 

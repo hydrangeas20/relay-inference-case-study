@@ -25,7 +25,7 @@ from relay.corpus.store import Corpus
 from relay.gateway.app import create_app
 from relay.loadgen.runner import run_trace
 from relay.traces.generate import GeneratorParams, build_header, generate
-from relay.traces.io import write_trace
+from relay.traces.io import read_trace, write_trace
 from tests.fakes import FakeConfig, create_fake_inference
 
 
@@ -112,4 +112,7 @@ async def test_replay_is_valid_and_reconciles(
     raw = list((tmp_path / "results" / "raw").glob("*.jsonl"))
     assert len(raw) == 1
     assert len(raw[0].read_text().splitlines()) == len(reqs)
-    assert json.loads(raw[0].read_text().splitlines()[0])["status"] == "ok"
+    first = json.loads(raw[0].read_text().splitlines()[0])
+    assert first["status"] == "ok"
+    assert first["prompt_chars"] > 0  # the gateway's built-size header was recorded
+    assert summary["trace"]["trace_id"] == read_trace(trace_path).header.trace_id

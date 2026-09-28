@@ -46,6 +46,13 @@ extend-exclude = ["data"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM", "ASYNC"]
 
+[tool.ruff.lint.per-file-ignores]
+# Research scripts: long result-dict lines are kept on one line for readability.
+"analysis/*" = ["E501"]
+
+[tool.ruff.lint.isort]
+known-local-folder = ["common", "validation_config", "fakes"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

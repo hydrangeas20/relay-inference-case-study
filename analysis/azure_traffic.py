@@ -1,13 +1,17 @@
-"""Derive the traffic-model reference data from Azure's public LLM inference trace.
+"""Derive the traffic model's reference data from Azure's trace (training days only).
 
-Usage: uv run python analysis/azure_traffic.py [--csv path/to/AzureLLMInferenceTrace_code_1week.csv]
+Usage: uv run python analysis/azure_traffic.py
 
-Downloads the 2024 one-week code trace (~690 MB) if no path is given, then writes
-three small derived files to traffic/reference/ (these are committed):
+Reads the SHA-256-verified raw trace (see analysis/README.md), training split only
+(Fri 05-10 .. Tue 05-14; the Wednesday holdout is never read), and writes to
+traffic/reference/:
 
-  azure_code_hourly.csv       requests per hour for the week (168 rows)
-  azure_code_burstiness.json  short-timescale rate fluctuation, fitted per ADR-0004
-  azure_code_sizes.csv        20,000 sampled (context tokens, generated tokens) pairs
+  azure_code_hourly.csv        requests per UTC hour, training days
+  azure_code_sizes.csv         20,000 sampled (context, generated) token pairs, training days
+  azure_code_burstiness.json   per-band statistics, candidate fits C1/C2, observed range,
+                               out-of-sample tolerances (preregistration §3-§6)
+  azure_code_clustering.json   sub-second clustering statistics for the clustered
+                               sensitivity variant (ADR-0005 D2), from raw timestamps
 
 Source: Azure LLM inference trace 2024, CC-BY 4.0.
   Stojkovic et al., "DynamoLLM: Designing LLM Inference Clusters for Performance
@@ -16,148 +20,193 @@ Source: Azure LLM inference trace 2024, CC-BY 4.0.
 
 from __future__ import annotations
 
-import argparse
 import json
-import subprocess
-from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
 
-URL = (
-    "https://github.com/Azure/AzurePublicDataset/releases/download/"
-    "dataset-llm-2024/AzureLLMInferenceTrace_code_1week.csv"
+from relay.traffic.stats import (
+    DETREND_WINDOW_S,
+    WINDOWS_S,
+    fit_power_law,
+    fit_shared_tau,
+    fit_sigma_tau,
+    rate_cv2,
 )
+
+import common
+
 OUT = Path("traffic/reference")
-DETREND_WINDOW_S = 600  # rate changes slower than this belong to the daily envelope
-FIT_WINDOWS_S = (1, 2, 5, 10, 30, 60)
-MIN_HOURLY_RATE = 10.0  # only fit on hours busy enough for the statistics to be stable
 SIZE_SAMPLE = 20_000
-SEED = 20240510
+SIZE_SEED = 20240510
+CLUSTER_GAP_S = 1e-3
 
 
-def load(csv_path: Path) -> tuple[np.ndarray, np.ndarray, np.ndarray, datetime]:
-    """Seconds since the first midnight (UTC), context tokens, generated tokens."""
-    ts: list[float] = []
-    ctx: list[int] = []
-    gen: list[int] = []
-    start: datetime | None = None
-    with csv_path.open() as f:
-        next(f)
-        for line in f:
-            stamp, c, g = line.rstrip().rsplit(",", 2)
-            t = datetime.fromisoformat(stamp)
-            if start is None:
-                start = t.replace(hour=0, minute=0, second=0, microsecond=0)
-            ts.append((t - start).total_seconds())
-            ctx.append(int(c))
-            gen.append(int(g))
-    assert start is not None
-    order = np.argsort(ts)
-    return np.asarray(ts)[order], np.asarray(ctx)[order], np.asarray(gen)[order], start
-
-
-def hourly(ts: np.ndarray, start: datetime) -> list[dict[str, object]]:
-    counts = np.bincount((ts // 3600).astype(int))
+def eligible_hours(data: dict[str, dict[str, np.ndarray]]) -> list[dict[str, object]]:
     rows = []
-    for h, n in enumerate(counts):
-        t = datetime.fromtimestamp(start.timestamp() + h * 3600, UTC)
-        rows.append({"hour_utc": t.strftime("%Y-%m-%dT%H:00Z"), "weekday": t.strftime("%a"),
-                     "requests": int(n)})  # fmt: skip
+    for day, arr in data.items():
+        t = common.dejitter(arr["t"])
+        for h, th in common.hours(t):
+            rate = len(th) / 3600
+            band = common.band_of(rate)
+            if rate >= common.MIN_ELIGIBLE_RATE and band is not None:
+                rows.append({"day": day, "hour": h, "rate": rate, "band": band,
+                             "cv2": rate_cv2(th, 3600)})  # fmt: skip
     return rows
 
 
-def rate_cv2_by_window(t_hour: np.ndarray) -> dict[int, float]:
-    """Squared relative fluctuation of the *rate* at each window size, Poisson noise removed.
+def pooled(rows: list[dict[str, object]]) -> tuple[np.ndarray, float, int]:
+    cv2 = np.median(np.array([r["cv2"] for r in rows]), axis=0)
+    return cv2, float(np.median([r["rate"] for r in rows])), len(rows)
 
-    Counts per second are compared with a moving-average trend. For window W,
-    Z = (count - expected) / expected has Var(Z) = CV_rate(W)^2 + 1/expected, so
-    CV_rate(W)^2 is estimated as mean(Z^2 - 1/expected).
-    """
-    per_s = np.bincount(t_hour.astype(int), minlength=3600)[:3600].astype(float)
-    k = DETREND_WINDOW_S
-    pad = np.pad(per_s, (k // 2, k - k // 2 - 1), mode="edge")
-    trend = np.convolve(pad, np.ones(k) / k, mode="valid")
-    out: dict[int, float] = {}
-    for w in FIT_WINDOWS_S:
-        n = 3600 // w
-        c = per_s[: n * w].reshape(n, w).sum(axis=1)
-        e = trend[: n * w].reshape(n, w).sum(axis=1)
-        z2 = ((c - e) / e) ** 2 - 1.0 / e
-        out[w] = float(np.mean(z2))
+
+def fit_candidates(rows: list[dict[str, object]], bands: list[int]) -> dict[str, object]:
+    """Fit C1 and C2 on the given bands' hours (preregistration §5)."""
+    curves, rates, counts = [], [], []
+    for b in bands:
+        cv2, rate, n = pooled([r for r in rows if r["band"] == b])
+        curves.append(cv2)
+        rates.append(rate)
+        counts.append(n)
+    shared_sigmas, shared_tau = fit_shared_tau(curves)
+    a1, b1 = fit_power_law(rates, shared_sigmas, counts)
+    indiv = [fit_sigma_tau(c) for c in curves]
+    a2, b2 = fit_power_law(rates, [s for s, _, _ in indiv], counts)
+    return {
+        "bands": bands,
+        "band_rates": rates,
+        "C1": {
+            "a": a1,
+            "b": b1,
+            "band_rates": rates,
+            "band_taus": [shared_tau] * len(bands),
+            "band_sigmas": shared_sigmas,
+        },  # fmt: skip
+        "C2": {
+            "a": a2,
+            "b": b2,
+            "band_rates": rates,
+            "band_taus": [t for _, t, _ in indiv],
+            "band_sigmas": [s for s, _, _ in indiv],
+        },  # fmt: skip
+    }
+
+
+def tolerances(rows: list[dict[str, object]]) -> dict[str, object]:
+    """2 x max-over-windows of the day-to-day SD of daily pooled curves (§6.1)."""
+
+    def spread(band_filter: object) -> dict[str, object] | None:
+        daily = []
+        days = []
+        for day in common.TRAINING:
+            hs = [r for r in rows if r["day"] == day and band_filter(r)]  # type: ignore[operator]
+            if len(hs) >= 3:
+                daily.append(np.sqrt(np.clip(np.median([r["cv2"] for r in hs], axis=0), 0, None)))
+                days.append(common.DAYS[day])
+        if len(daily) < 2:
+            return None
+        sd = np.std(np.array(daily), axis=0, ddof=1)
+        return {
+            "days": days,
+            "sd": sd.round(5).tolist(),
+            "tolerance": round(2 * float(sd.max()), 4),
+        }
+
+    out: dict[str, object] = {}
+    for b, (lo, hi) in enumerate(common.RATE_BANDS):
+        out[f"{lo:g}-{hi:g}"] = spread(lambda r, b=b: r["band"] == b)
+    out["30-120 (O2 option a)"] = spread(lambda r: 30 <= r["rate"] < 120)
     return out
 
 
-def ou_cv2(w: np.ndarray, sigma2: float, tau: float) -> np.ndarray:
-    """Relative variance of a window-averaged rate with exponential autocorrelation."""
-    x = w / tau
-    return sigma2 * 2.0 * (x - 1.0 + np.exp(-x)) / x**2
-
-
-def fit_burstiness(ts: np.ndarray) -> dict[str, object]:
-    per_hour: list[dict[int, float]] = []
-    for h in range(int(ts.max() // 3600) + 1):
-        t = ts[(ts >= h * 3600) & (ts < (h + 1) * 3600)] - h * 3600
-        if len(t) / 3600 >= MIN_HOURLY_RATE:
-            per_hour.append(rate_cv2_by_window(t))
-    windows = np.array(FIT_WINDOWS_S, dtype=float)
-    observed = np.array([np.median([h[w] for h in per_hour]) for w in FIT_WINDOWS_S])
-    best: tuple[float, float, float] | None = None
-    for tau in np.geomspace(0.1, 600, 400):
-        shape = ou_cv2(windows, 1.0, tau)
-        sigma2 = float(np.exp(np.mean(np.log(np.clip(observed, 1e-9, None)) - np.log(shape))))
-        err = float(np.sum((np.log(np.clip(observed, 1e-9, None)) - np.log(sigma2 * shape)) ** 2))
-        if best is None or err < best[0]:
-            best = (err, sigma2, float(tau))
-    assert best is not None
-    _, sigma2, tau = best
-    fitted = ou_cv2(windows, sigma2, tau)
+def clustering(data: dict[str, dict[str, np.ndarray]]) -> dict[str, object]:
+    """Excess sub-millisecond clustering per band, from RAW timestamps (not de-jittered)."""
+    per_band: dict[int, list[tuple[float, float]]] = {b: [] for b in range(len(common.RATE_BANDS))}
+    within: list[np.ndarray] = []
+    for arr in data.values():
+        for _, th in common.hours(arr["t"]):
+            rate = len(th) / 3600
+            band = common.band_of(rate)
+            if rate < common.MIN_ELIGIBLE_RATE or band is None:
+                continue
+            gaps = np.diff(th)
+            per_band[band].append((rate, float(np.mean(gaps < CLUSTER_GAP_S))))
+            within.append(gaps[gaps < CLUSTER_GAP_S])
+    bands = []
+    for b, vals in per_band.items():
+        rate = float(np.median([v[0] for v in vals]))
+        observed = float(np.median([v[1] for v in vals]))
+        chance = 1.0 - float(np.exp(-rate * CLUSTER_GAP_S))
+        excess = max(0.0, (observed - chance) / (1.0 - chance))
+        bands.append({"rate_range": list(common.RATE_BANDS[b]), "median_rate": rate,
+                      "hours": len(vals), "gap_lt_1ms_observed": observed,
+                      "gap_lt_1ms_chance": chance, "mean_cluster_size": 1.0 / (1.0 - excess)})  # fmt: skip
+    gaps_all = np.concatenate(within)
     return {
-        "model": "log-rate Ornstein-Uhlenbeck (Cox process)",
-        "rate_relative_std": round(float(np.sqrt(sigma2)), 4),
-        "correlation_time_s": round(tau, 3),
-        "hours_used": len(per_hour),
-        "detrend_window_s": DETREND_WINDOW_S,
-        "fit": [
-            {
-                "window_s": int(w),
-                "observed_rate_cv": round(float(np.sqrt(max(o, 0))), 4),
-                "fitted_rate_cv": round(float(np.sqrt(f)), 4),
-            }  # fmt: skip
-            for w, o, f in zip(windows, observed, fitted, strict=True)
-        ],
+        "source": "raw timestamps (not de-jittered), training days",
+        "cluster_gap_s": CLUSTER_GAP_S,
+        "model": "each arrival becomes a cluster parent with probability 1/m; clusters have "
+        "geometric size with mean m; gaps inside a cluster are drawn from the quantiles below. "
+        "No 250 ms periodic structure.",
+        "bands": bands,
+        "within_cluster_gap_quantiles_s": np.quantile(gaps_all, np.linspace(0, 1, 101)).tolist(),
     }
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--csv", type=Path)
-    args = parser.parse_args()
-    csv_path = args.csv
-    if csv_path is None:
-        csv_path = Path("data/azure/AzureLLMInferenceTrace_code_1week.csv")
-        if not csv_path.exists():
-            csv_path.parent.mkdir(parents=True, exist_ok=True)
-            subprocess.run(["curl", "-sSL", "-o", str(csv_path), URL], check=True)
-
-    ts, ctx, gen, start = load(csv_path)
+    data = common.load_split("training")
     OUT.mkdir(parents=True, exist_ok=True)
 
-    rows = hourly(ts, start)
     with (OUT / "azure_code_hourly.csv").open("w") as f:
         f.write("hour_utc,weekday,requests\n")
-        f.writelines(f"{r['hour_utc']},{r['weekday']},{r['requests']}\n" for r in rows)
+        for day, arr in data.items():
+            counts = np.bincount((arr["t"] // 3600).astype(int), minlength=24)[:24]
+            for h, n in enumerate(counts):
+                f.write(f"{day}T{h:02d}:00Z,{common.DAYS[day]},{int(n)}\n")
 
-    burst = fit_burstiness(ts)
-    (OUT / "azure_code_burstiness.json").write_text(json.dumps(burst, indent=2) + "\n")
-
-    rng = np.random.default_rng(SEED)
+    ctx = np.concatenate([a["ctx"] for a in data.values()])
+    gen = np.concatenate([a["gen"] for a in data.values()])
+    rng = np.random.default_rng(SIZE_SEED)
     idx = np.sort(rng.choice(len(ctx), size=SIZE_SAMPLE, replace=False))
     with (OUT / "azure_code_sizes.csv").open("w") as f:
         f.write("context_tokens,generated_tokens\n")
         f.writelines(f"{int(c)},{int(g)}\n" for c, g in zip(ctx[idx], gen[idx], strict=True))
 
-    print(json.dumps(burst, indent=2))
+    rows = eligible_hours(data)
+    rates = [r["rate"] for r in rows]
+    band_table = []
+    for b, (lo, hi) in enumerate(common.RATE_BANDS):
+        cv2, rate, n = pooled([r for r in rows if r["band"] == b])
+        band_table.append({"range_rps": [lo, hi], "hours": n, "median_rate": rate,
+                           "pooled_cv2": cv2.tolist(),
+                           "pooled_cv": np.sqrt(np.clip(cv2, 0, None)).tolist()})  # fmt: skip
+    holdouts = {
+        f"without {lo:g}-{hi:g}": fit_candidates(rows, [x for x in range(4) if x != b])
+        for b, (lo, hi) in enumerate(common.RATE_BANDS)
+    }
+    burst = {
+        "format": 2,
+        "derived_from": {
+            "raw_sha256": common.RAW_SHA256,
+            "split": "training",
+            "days": [common.DAYS[d] for d in common.TRAINING],
+            "timestamps": "de-jittered within 250 ms (seed 20260928)",
+        },
+        "estimator": {"windows_s": list(WINDOWS_S), "detrend_window_s": DETREND_WINDOW_S},
+        "eligible_hours": len(rows),
+        "observed_range_rps": [round(min(rates), 2), round(max(rates), 2)],
+        "bands": band_table,
+        "candidates": fit_candidates(rows, [0, 1, 2, 3]),
+        "band_holdout_fits": holdouts,
+        "tolerances": tolerances(rows),
+    }
+    (OUT / "azure_code_burstiness.json").write_text(json.dumps(burst, indent=2) + "\n")
+    (OUT / "azure_code_clustering.json").write_text(json.dumps(clustering(data), indent=2) + "\n")
+    c = burst["candidates"]
+    print(json.dumps({"observed_range_rps": burst["observed_range_rps"],
+                      "C1": {k: c["C1"][k] for k in ("a", "b", "band_taus")},
+                      "C2": {k: c["C2"][k] for k in ("a", "b", "band_taus")},
+                      "tolerances": burst["tolerances"]}, indent=1, default=str))  # fmt: skip
 
 
 if __name__ == "__main__":
