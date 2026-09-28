@@ -87,3 +87,27 @@ def test_ks_helpers() -> None:
     assert ks_statistic(a, a) == 0.0
     assert ks_statistic(a, a + 1000) == 1.0
     assert ks_critical(100, 100) == pytest.approx(1.358 * np.sqrt(0.02))
+
+
+def test_mixture_ks_equals_two_sample_ks_with_one_bound() -> None:
+    from relay.traffic.check import ks_mixture_statistic
+
+    rng = np.random.default_rng(0)
+    ref = rng.integers(0, 1000, 5000).astype(float)
+    sample = rng.integers(300, 1000, 800).astype(float)
+    assert ks_mixture_statistic(sample, ref, np.full(800, 300.0)) == pytest.approx(
+        ks_statistic(sample, ref[ref >= 300])
+    )
+
+
+def test_mixture_ks_is_small_for_a_sample_from_the_mixture() -> None:
+    from relay.traffic.check import ks_mixture_statistic
+
+    rng = np.random.default_rng(1)
+    ref = rng.exponential(500, 20_000)
+    bounds = rng.choice([100.0, 200.0, 400.0], 5000)
+    sample = np.array([rng.choice(ref[ref >= b]) for b in bounds])
+    d = ks_mixture_statistic(sample, ref, bounds)
+    assert d < ks_critical(5000, int(np.sum(ref >= 100)))
+    # Conditioning everything on the largest bound instead is detectably wrong.
+    assert ks_statistic(sample, ref[ref >= 400]) > 3 * d

@@ -6,11 +6,14 @@ the preregistration, committed before the run it affects.
 
 from __future__ import annotations
 
-# §10 open items. Candidate validation refuses to run while either is None.
-O1_SIGN_CLAUSE: str | None = None  # "pass/fail" | "dropped" | "diagnostic", per amendment
+# §10 open items, resolved by preregistration Amendment 1 (2026-09-28).
+# A1.1: the sign clause is a reported diagnostic, not a pass/fail clause.
+O1_SIGN_CLAUSE: str | None = "diagnostic"  # "pass/fail" | "dropped" | "diagnostic"
 # "a-merged": one pooled 30-120 band checked at 0.0102; "a-separate": 30-60 and 60-120
 # checked separately, both at 0.0102; "b": 60-120 at 0.0035; "c": 60-120 at 0.0146.
-O2_HIGH_BAND_TOLERANCE: str | None = None
+# A1.2: 0.0102 from the merged 30-120 training population; 30-60 and 60-120 evaluated
+# separately, both at 0.0102 (supersedes 0.0146 for 30-60, including band holdouts).
+O2_HIGH_BAND_TOLERANCE: str | None = "a-separate"
 
 # §6.1 tolerances (training days only), keyed by fit band.
 TOLERANCES: dict[str, float] = {"3-10": 0.0985, "10-30": 0.0321, "30-60": 0.0146}

@@ -112,6 +112,30 @@ def ks_statistic(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.max(np.abs(fa - fb)))
 
 
+def ks_mixture_statistic(sample: np.ndarray, reference: np.ndarray, bounds: np.ndarray) -> float:
+    """KS distance between `sample` and a matched mixture of conditioned reference CDFs.
+
+    Sample value i is drawn, under the null, from `reference` conditioned on >= bounds[i].
+    The reference CDF is the average of those conditional CDFs over the sample
+    (preregistration Amendment 1, A1.3). All three arrays share units.
+    """
+    sample, reference = np.sort(np.asarray(sample, float)), np.sort(np.asarray(reference, float))
+    bounds = np.asarray(bounds, float)
+    if len(bounds) != len(sample):
+        raise ValueError("one bound per sample value")
+    v = np.concatenate([sample, reference])
+    f_sample = np.searchsorted(sample, v, side="right") / len(sample)
+    f_ref = np.zeros(len(v))
+    levels, counts = np.unique(bounds, return_counts=True)
+    for level, count in zip(levels, counts, strict=True):
+        kept = reference[reference >= level]
+        if len(kept) == 0:
+            raise ValueError(f"no reference values at or above {level}")
+        f_ref += count * np.searchsorted(kept, v, side="right") / len(kept)
+    f_ref /= len(sample)
+    return float(np.max(np.abs(f_sample - f_ref)))
+
+
 def ks_critical(n: int, m: int, c_alpha: float = 1.358) -> float:
     """Asymptotic two-sample KS critical value (c_alpha = 1.358 for alpha = 0.05)."""
     return float(c_alpha * np.sqrt((n + m) / (n * m)))

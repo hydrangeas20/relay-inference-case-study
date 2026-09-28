@@ -84,7 +84,8 @@ def test_generated_traffic_reproduces_training_band_curve(band: int) -> None:
         for s in range(3)
     ]
     generated = np.sqrt(np.clip(np.mean(curves, axis=0), 0, None))
-    tolerance = REFERENCE["tolerances"][("3-10", "10-30", "30-60")[band]]["tolerance"]
+    key = ("3-10", "10-30", "30-120 (O2 option a)")[band]  # Amendment 1 (A1.2)
+    tolerance = REFERENCE["tolerances"][key]["tolerance"]
     assert np.max(np.abs(generated - np.asarray(b["pooled_cv"]))) <= tolerance
 
 

@@ -69,7 +69,8 @@ def band_check(pred: np.ndarray, obs: np.ndarray, tol: float) -> dict[str, Any]:
                            "max_abs_error": round(float(np.max(np.abs(err))), 5),
                            "magnitude_ok": magnitude_ok, "passed": passed}  # fmt: skip
     if cfg.O1_SIGN_CLAUSE in ("pass/fail", "diagnostic"):
-        out["all_same_sign"] = same_sign
+        out["error_signs"] = "".join("+" if e > 0 else "-" if e < 0 else "0" for e in err)
+        out["all_same_sign"] = same_sign  # Amendment 1: diagnostic only, not in "passed"
     return out
 
 

@@ -1,13 +1,21 @@
-"""Preregistered prompt-size fidelity test (docs/validation/phase-2-preregistration.md §8).
+"""Prompt-size fidelity test (preregistration §8, as amended by Amendment 1, A1.3).
 
 Usage: uv run python analysis/validate_prompt_fidelity.py
 
 Generates the preregistered evaluation trace, sends every completion through Relay's
 gateway (in-process, against a fake inference server), records the built prompt size
 the gateway reports (X-Relay-Prompt-Chars, MEASURED), and compares built sizes of
-representable targets with the training-derived Azure size sample. Targets below the
-template minimum are kept, flagged and reported separately; they are excluded from
-the pass/fail test. Needs the code corpus (make corpus), not the raw Azure trace.
+representable targets with the training-derived Azure size sample.
+
+Representability is judged per request (A1.3): request i is included if its target is
+at least m_i, its own structural minimum. The reference is the matched mixture of Azure
+CDFs conditioned on >= m_i. Structurally unrepresentable targets are kept, flagged and
+reported separately. Needs the code corpus (make corpus), not the raw Azure trace.
+
+Writes analysis/results/validation-prompt-fidelity-amended.json. The first result
+(global 636-character cutoff, observed before the amendment) stays in
+validation-prompt-fidelity.json and is never overwritten; this script also recomputes
+it from the same deterministic trace as a reproduction check.
 """
 
 from __future__ import annotations
@@ -28,7 +36,12 @@ from relay.corpus.manifest import load_lock
 from relay.corpus.store import load_corpus
 from relay.gateway.app import PROMPT_CHARS_HEADER, create_app
 from relay.traces.schema import CompletionRequest
-from relay.traffic.check import ks_critical, ks_statistic, prompt_size_report
+from relay.traffic.check import (
+    ks_critical,
+    ks_mixture_statistic,
+    ks_statistic,
+    prompt_size_report,
+)
 from relay.traffic.generate import (
     MIN_PREFIX_CHARS,
     TraceSpec,
@@ -42,7 +55,8 @@ import validation_config as cfg
 sys.path.insert(0, "tests")
 from fakes import FakeConfig, create_fake_inference  # noqa: E402
 
-OUT = Path("analysis/results/validation-prompt-fidelity.json")
+ORIGINAL = Path("analysis/results/validation-prompt-fidelity.json")  # never written here
+OUT = Path("analysis/results/validation-prompt-fidelity-amended.json")
 
 
 async def measure(payloads: list[dict[str, object]]) -> tuple[dict[str, int], dict[str, int]]:
@@ -77,54 +91,72 @@ def main() -> None:
     report = prompt_size_report(comps, built, model.chars_per_token)
 
     cpt = model.chars_per_token
-    # A common truncation point T for both samples: the largest per-request template
-    # minimum in the trace. Every target at or above T is representable for any request,
-    # so conditioning both sides on ">= T" compares like with like.
-    per_request_min = [
-        template_overhead_chars(r.req_id, corpus.get(r.file.repo, r.file.path), [])
-        + MIN_PREFIX_CHARS
-        for r in comps
-    ]
-    min_chars = max(per_request_min)
-    rep = [r for r in comps if round(r.target_prompt_tokens * cpt) >= min_chars]
-    assert not any(r.below_template_minimum for r in rep)
-    built_tok = np.array([built[r.req_id] / cpt for r in rep])
+    # A1.3 step 1: each request's own structural minimum (no context files, minimum prefix).
+    m = {r.req_id: template_overhead_chars(r.req_id, corpus.get(r.file.repo, r.file.path), [])
+         + MIN_PREFIX_CHARS for r in comps}  # fmt: skip
+    target_chars = {r.req_id: round(r.target_prompt_tokens * cpt) for r in comps}
+    inc = [r for r in comps if target_chars[r.req_id] >= m[r.req_id]]
+    below = [r for r in comps if target_chars[r.req_id] < m[r.req_id]]
+    flag_mismatch = sum(r.below_template_minimum != (r in below) for r in comps)
     with Path(settings.traffic_model.parent / "reference" / "azure_code_sizes.csv").open() as fh:
-        azure = np.array([int(x["context_tokens"]) for x in csv.DictReader(fh)], dtype=float)
-    azure_rep = azure[np.round(azure * cpt) >= min_chars]
-    d = ks_statistic(built_tok, azure_rep)
-    crit = ks_critical(len(built_tok), len(azure_rep))
-    below = [r for r in comps if r.below_template_minimum]
+        azure_tok = np.array([int(x["context_tokens"]) for x in csv.DictReader(fh)], dtype=float)
+    azure_chars = np.round(azure_tok * cpt)
+
+    # A1.3 steps 4-5: matched-mixture reference, in characters (the conditioning's units).
+    built_chars = np.array([built[r.req_id] for r in inc], dtype=float)
+    bounds = np.array([m[r.req_id] for r in inc], dtype=float)
+    d = ks_mixture_statistic(built_chars, azure_chars, bounds)
+    m_ref = int(np.sum(azure_chars >= bounds.min()))
+    crit = ks_critical(len(built_chars), m_ref)
+    ratio = np.array([built[r.req_id] / target_chars[r.req_id] for r in inc])
+
+    # Reproduction of the original (pre-amendment) global-cutoff computation.
+    t_global = max(m.values())
+    rep = [r for r in comps if target_chars[r.req_id] >= t_global]
+    d0 = ks_statistic(np.array([built[r.req_id] / cpt for r in rep]),
+                      azure_tok[azure_chars >= t_global])  # fmt: skip
+    original = json.loads(ORIGINAL.read_text())
+
     result = {
         "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "procedure": "preregistration §8 as amended by Amendment 1 (A1.3): per-request "
+        "representability, matched-mixture reference",
         "trace": {"spec_id": header.spec_id, "generator_sha256": header.generator_sha256,
                   "traffic_model_sha256": header.traffic_model_sha256, **cfg.FIDELITY_TRACE},
         "chars_per_token": cpt,
         "completions_generated": report.completions + len(rejected),
-        "rejected_by_gateway": {
-            "count": len(rejected),
-            "statuses": sorted(set(rejected.values())),
-            "note": "excluded from all size statistics below",
-        },
+        "rejected_by_gateway": {"count": len(rejected), "statuses": sorted(set(rejected.values())),
+                                "note": "excluded from all size statistics below"},
         "completions": report.completions,
-        "conditioning": "both samples restricted to targets >= T, the largest per-request "
-        "template minimum in the trace",
-        "T_chars": min_chars,
-        "T_tokens": round(min_chars / cpt, 1),
-        "per_request_minimum_chars_range": [min(per_request_min), max(per_request_min)],
-        "representable_at_or_above_T": len(rep),
+        "per_request_minimum_chars_range": [min(m.values()), max(m.values())],
+        "included_representable": len(inc),
+        "generator_flag_disagreements": flag_mismatch,
         "ks": {"statistic": round(d, 5), "critical_5pct": round(crit, 5),
-               "n_built": len(built_tok), "n_azure": len(azure_rep), "passed": d < crit},
+               "n_built": len(inc), "m_azure_at_or_above_smallest_minimum": m_ref,
+               "passed": d < crit},
         "built_vs_expected_mismatches": report.expected_mismatch,
-        "below_minimum": {
+        "included_built_vs_target_ratio_quantiles_1_50_99": np.percentile(ratio, [1, 50, 99]).round(4).tolist(),
+        "included_min_ratio": round(float(ratio.min()), 4),
+        "included_more_than_0.5pct_short": int(np.sum(ratio < 0.995)),
+        "structurally_unrepresentable": {
             "count": len(below),
-            "fraction_of_all_targets": round(report.below_minimum_fraction, 5),
-            "target_tokens_quantiles_10_50_90": np.percentile([r.target_prompt_tokens for r in below], [10, 50, 90]).tolist() if below else [],
-            "built_tokens_quantiles_10_50_90": np.percentile([built[r.req_id] / cpt for r in below], [10, 50, 90]).round(1).tolist() if below else [],
-            "inflation_quantiles_10_50_90": np.percentile(report.below_minimum_inflation, [10, 50, 90]).round(3).tolist() if below else [],
+            "fraction_of_all_targets": round(len(below) / len(comps), 5),
+            "target_tokens_quantiles_10_50_90": np.percentile([r.target_prompt_tokens for r in below], [10, 50, 90]).tolist(),
+            "built_tokens_quantiles_10_50_90": np.percentile([built[r.req_id] / cpt for r in below], [10, 50, 90]).round(1).tolist(),
+            "inflation_quantiles_10_50_90": np.percentile([built[r.req_id] / target_chars[r.req_id] for r in below], [10, 50, 90]).round(3).tolist(),
         },
-        "representable_built_vs_target_ratio_quantiles_1_50_99": np.percentile(
-            [built[r.req_id] / (r.target_prompt_tokens * cpt) for r in rep], [1, 50, 99]).round(4).tolist(),
+        "original_result": {
+            "file": str(ORIGINAL),
+            "observed_before_amendment": True,
+            "ks": original["ks"],
+            "T_chars": original["T_chars"],
+            "reproduced_now": {"T_chars": t_global, "n_built": len(rep),
+                               "statistic": round(d0, 5),
+                               "matches_original": t_global == original["T_chars"]
+                               and len(rep) == original["ks"]["n_built"]
+                               and round(d0, 5) == original["ks"]["statistic"]},
+            "targets_included_now_but_excluded_by_T": len(inc) - len(rep),
+        },
     }  # fmt: skip
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(result, indent=1) + "\n")

@@ -28,6 +28,10 @@ from relay.traffic.model import load_model
 from relay.traffic.stats import WINDOWS_S, rate_cv2
 
 BAND_TOLERANCE_KEYS = ("3-10", "10-30", "30-60", "60-120")
+# Preregistration Amendment 1 (A1.2): 30-60 and 60-120 are checked separately, each
+# against the tolerance estimated from the merged 30-120 training population.
+MERGED_HIGH = "30-120 (O2 option a)"
+TOLERANCE_SOURCE = {"3-10": "3-10", "10-30": "10-30", "30-60": MERGED_HIGH, "60-120": MERGED_HIGH}
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -68,14 +72,10 @@ def main(argv: list[str] | None = None) -> None:
         generated = np.sqrt(np.clip(np.mean(curves, axis=0), 0, None))
         observed = np.asarray(band["pooled_cv"])
         diff = float(np.max(np.abs(generated - observed)))
-        tol_entry = reference["tolerances"].get(key)
-        tol = tol_entry["tolerance"] if tol_entry and len(tol_entry["days"]) >= 3 else None
-        if tol is None:
-            verdict = "no tolerance (pending O2)"
-        else:
-            passed = diff <= tol
-            ok &= passed
-            verdict = f"{'PASS' if passed else 'FAIL'} (tolerance {tol})"
+        tol = float(reference["tolerances"][TOLERANCE_SOURCE[key]]["tolerance"])
+        passed = diff <= tol
+        ok &= passed
+        verdict = f"{'PASS' if passed else 'FAIL'} (tolerance {tol})"
         print(f"  {key:>6} rps at {rate:6.2f}: max |diff| {diff:.4f}  {verdict}")
     sys.exit(0 if ok else 1)
 

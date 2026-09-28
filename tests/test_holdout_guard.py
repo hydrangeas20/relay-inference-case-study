@@ -43,7 +43,15 @@ def test_dejitter_stays_within_each_250ms_interval() -> None:
     assert np.array_equal(common.dejitter(t), d)  # deterministic
 
 
-def test_validation_refuses_to_run_until_open_items_are_resolved() -> None:
-    if validation_config.O1_SIGN_CLAUSE is None or validation_config.O2_HIGH_BAND_TOLERANCE is None:
-        with pytest.raises(validation_config.UnresolvedPreregistration):
-            validation_config.require_resolved()
+def test_validation_refuses_to_run_until_open_items_are_resolved(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(validation_config, "O1_SIGN_CLAUSE", None)
+    with pytest.raises(validation_config.UnresolvedPreregistration):
+        validation_config.require_resolved()
+
+
+def test_amendment_1_settings() -> None:
+    assert validation_config.O1_SIGN_CLAUSE == "diagnostic"
+    bands = {label: tol for label, _, tol in validation_config.check_bands()}
+    assert bands == {"3-10": 0.0985, "10-30": 0.0321, "30-60": 0.0102, "60-120": 0.0102}
