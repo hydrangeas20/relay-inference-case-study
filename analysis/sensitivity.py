@@ -33,6 +33,15 @@ SELECTION = Path("analysis/results/validation-validation.json")
 OUT = Path("analysis/results/sensitivity.json")
 
 
+def implied_mean_cluster_size(t: np.ndarray, rate: float, gap_s: float = 0.001) -> float:
+    """Mean cluster size implied by excess sub-millisecond gaps: the definition used for
+    the clustering reference (analysis/azure_traffic.py): 1 / (1 - excess)."""
+    observed = float(np.mean(np.diff(t) < gap_s))
+    chance = 1.0 - float(np.exp(-rate * gap_s))
+    excess = max(0.0, (observed - chance) / (1.0 - chance))
+    return 1.0 / (1.0 - excess)
+
+
 def main() -> None:
     cfg.require_resolved()
     if not SELECTION.exists():
@@ -97,6 +106,9 @@ def main() -> None:
             "canonical_gap_lt_1ms": float(np.mean(np.diff(base) < 1e-3)),
             "azure_raw_last_50ms_share": float(np.mean((th % 0.25) >= 0.2)),
             "clustered_last_50ms_share": float(np.mean((ct % 0.25) >= 0.2)),
+            "azure_raw_mean_cluster_size": implied_mean_cluster_size(th, rate),
+            "clustered_mean_cluster_size": implied_mean_cluster_size(ct, rate),
+            "canonical_mean_cluster_size": implied_mean_cluster_size(base, rate),
         })  # fmt: skip
     report["clustered_vs_raw_thursday"] = clustered
     OUT.write_text(json.dumps(report, indent=1, default=float) + "\n")

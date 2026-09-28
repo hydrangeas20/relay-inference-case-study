@@ -13,13 +13,14 @@ Revised after the 2026-09-28 verification audit ([ADR-0005](../decisions/0005-tr
 - [x] Burstiness depends on request rate, fitted on training days with reproducible scripts (`analysis/`, from the SHA-256-verified raw trace)
 - [x] Outside Azure's observed rate range, traces need an explicit scenario (`edge`, `poisson` or `trend`), recorded in the header
 - [x] Generated traffic reproduces the training bands' curves in-sample (`make traffic-check`; shows the generator implements the fit, not validation)
-- [ ] Out-of-sample band checks and band holdouts pass on Thursday (blocked on preregistration open items O1 and O2)
-- [ ] Queueing test passes on Thursday and beats Poisson (blocked on O1 and O2)
-- [ ] C1 or C2 chosen by the preregistered selection rule (blocked on O1 and O2)
+- [x] Open items O1 and O2 resolved by a dated amendment before Thursday (preregistration Amendment 1)
+- [ ] Out-of-sample band checks pass on Thursday: **C2 passed all four bands; C1 failed 30–60 rps** (0.0113 vs 0.0102). Both passed the rate-band holdouts
+- [ ] Queueing test passes on Thursday and beats Poisson: **both candidates failed all three criteria** (in band 44 and 47 of 96 cells, needed 77; out of bounds 25 and 27, needed 0; beat Poisson in 58 of 87 non-tie cells, needed 70)
+- [x] Selection rule applied: no candidate passed; **C2 recorded as the provisional choice** (criterion-1 fraction 0.49 vs 0.46)
 - [ ] Wednesday holdout evaluated exactly once, and the result documented and reviewed (not yet authorised)
 - [x] Canonical traffic has no 250 ms pattern; a `--clustered` variant exists for sensitivity runs
 - [x] Completion target sizes resampled from Azure training days; each request records its target sizes
-- [x] Built prompts follow the target distribution for representable targets (KS 0.006 vs critical 0.013; MEASURED at the gateway); below-minimum targets kept and flagged (5.6%)
+- [x] Built prompts follow the target distribution for representable targets, judged per request (amended: KS 0.0046 vs critical 0.0131; first, pre-amendment run 0.0060 vs 0.0131; MEASURED at the gateway). Structurally unrepresentable targets kept and flagged (5.6%)
 - [x] Day and window traces, scaled by one parameter; header records the scale and daily-active-user equivalents
 - [x] Trace format v3: `spec_id`, `generator_sha256` and a content-addressed `trace_id` checked on read; v1 and v2 traces still read
 - [x] Same spec and seed produce a byte-identical trace
@@ -50,4 +51,4 @@ burstiness C1: sigma = 0.4407 * rate^-0.3231 within 3.2-82.83 rps (AZURE-DERIVED
   60-120 rps at  70.75: max |diff| 0.0062  no tolerance (pending O2)
 ```
 
-Out-of-sample results go in `analysis/results/validation-*.json` as they're run.
+Thursday validation: `analysis/results/validation-validation.json`. Prompt fidelity: `validation-prompt-fidelity-amended.json` (amended) and `validation-prompt-fidelity.json` (first run, kept). Sensitivity: `sensitivity.json`.

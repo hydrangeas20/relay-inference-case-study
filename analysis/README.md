@@ -32,7 +32,7 @@ Burstiness analyses use **de-jittered** timestamps (each redrawn uniformly withi
 | Reference → model | `src/relay/traffic/` | reference data + `traffic/relay.toml` | the traffic model used by `relay-trace` | Yes |
 | In-sample check | `make traffic-check` | reference data | generator reproduces training band curves | printed |
 | Validation (preregistered) | `validate.py` | validation split (and, once, holdout) | `results/validation-<split>.json` | Yes |
-| Prompt fidelity (preregistered) | `validate_prompt_fidelity.py` | code corpus + reference sizes | `results/validation-prompt-fidelity.json` | Yes |
+| Prompt fidelity (preregistered, Amendment 1) | `validate_prompt_fidelity.py` | code corpus + reference sizes | `results/validation-prompt-fidelity-amended.json`; the first, pre-amendment result stays in `results/validation-prompt-fidelity.json` and is never overwritten | Yes |
 | Sensitivity (preregistered, descriptive) | `sensitivity.py` | selected candidate | `results/sensitivity.json` | Yes |
 
 The one estimator used everywhere is `relay.traffic.stats.rate_cv2`. `validation_config.py` holds the frozen preregistration values; `validate.py` and `sensitivity.py` refuse to run while preregistration items are unresolved.

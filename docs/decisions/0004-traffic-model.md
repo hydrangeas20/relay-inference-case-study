@@ -36,12 +36,14 @@ Burstiness also depends on request rate. Pooled by rate band over the 119 traini
 
 | Candidate | σ(λ) | τ |
 |---|---|---|
-| **C1** (baseline; provisional default) | 0.441·λ^−0.323 | 9.2 s at every rate |
+| **C1** (baseline; default in `relay.toml`) | 0.441·λ^−0.323 | 9.2 s at every rate |
 | **C2** | 0.485·λ^−0.351 | per band: 8.2, 7.5, 11.8, 10.3 s, interpolated in log-rate |
 
 **Observed range.** The power law applies between 3.2 and 82.8 rps, the training hours' range. Outside it, generation needs one of three pre-declared scenarios (ADR-0005 D1): `edge` holds σ at the boundary value, `poisson` sets it to zero, and `trend` extrapolates the power law (PROJECTED). Relay's full-scale peak (about 2,400 rps) is far outside the range, so the scenario is part of every result at that scale. The trace header records the candidate, the range, the scenario and the fraction of time spent out of range.
 
 **Consequences:** the multiplier is relative, so burstiness depends on the rate of the trace actually generated. A trace scaled down to one GPU gets the burstiness Azure shows at *that* rate, not at Relay's full-scale rate. Burstiness slower than about 10 minutes is left to the envelope. `make traffic-check` compares generated traffic with the training bands' pooled curves (in-sample; MEASURED on SIMULATED traces). This shows that the generator implements the fit. It isn't validation. Out-of-sample validation, the queueing test and the choice between C1 and C2 follow the [preregistration](../validation/phase-2-preregistration.md).
+
+**Thursday validation (MEASURED on Azure's Thursday, SIMULATED model traffic; 2026-09-28):** neither candidate passed, so the preregistered selection rule recorded **C2 as a provisional choice** (criterion-1 fraction 0.49 against C1's 0.46). Both candidates' predicted burstiness curves were within tolerance in every Thursday rate band except C1's 30–60 rps band (error 0.0113 against 0.0102), and both passed the rate-band holdouts. **Both failed the queueing test on all three criteria.** Queueing tails came out longer than Azure's: the median model/Azure p99 wait ratio is 1.28, and most out-of-bounds cells are overestimates. Poisson's are far shorter (0.32). The fitted fluctuation curve at 1–60 s doesn't pin down queue tails. Full results: `analysis/results/validation-validation.json`. The Wednesday holdout hasn't been run.
 
 **Known limitations:**
 
@@ -49,6 +51,7 @@ Burstiness also depends on request rate. Pooled by rate band over the 119 traini
 - **τ depends on the detrending window.** It ranges from 2.2 s (2-minute trend) to 12.6 s (60-minute trend), while σ barely moves (0.187–0.202) (AZURE-DERIVED, pooled training hours).
 - **The estimator reads slightly high at low rates.** On simulated traffic with σ = 0.16, it recovers 0.171 ± 0.011 at 10 rps and 0.162 at 80 rps (SIMULATED).
 - **Queueing is still more sensitive than Azure's in the one in-sample hour checked.** Driven by the trend of Azure's Tue 18:00 hour (83 rps), C1's 1 s fluctuation is 0.095 against Azure's 0.092 (the pooled model gave 0.17). But its p99 wait in an 8-server queue at 85% utilisation is 11.8 service times, against Azure's 5.8 and Poisson's 2.2 (SIMULATED, one seed). The preregistered queueing test is what decides whether this matters.
+- **Possible retries or duplicates at low rates (exploratory, AZURE-DERIVED).** Among pairs of arrivals under 1 ms apart, 11.5% share an identical context size at 3–10 rps, against 2.9% for other pairs. This may be a retry or duplicate component. It doesn't change the canonical model.
 - **Sub-second structure is scoped out (ADR-0005 D2).** Azure's raw timestamps show a repeating 250 ms pattern and excess sub-millisecond gaps. Canonical traffic reproduces neither, and is compared with Azure timestamps re-randomised within each 250 ms interval. A `--clustered` variant adds excess clustering without the 250 ms pattern, for sensitivity runs.
 
 **Why:** _to be written_
@@ -63,9 +66,9 @@ Burstiness also depends on request rate. Pooled by rate band over the 119 traini
 
 Prompt tokens become characters at **3.5 characters per token** (ASSUMED, temporary until Phase 3 picks a tokenizer). The generator knows the gateway's template, so it builds each prompt to its target size. The gateway reports the built size of every prompt in an `X-Relay-Prompt-Chars` header and a histogram.
 
-**Fidelity (MEASURED, preregistered procedure):** on a 60-minute trace at 8 rps, the built prompts follow the Azure sample. Both are conditioned on targets of at least 636 characters (182 tokens), the largest template minimum in the trace. On that range, the Kolmogorov–Smirnov distance is 0.006 against a 5% critical value of 0.013, and every representable prompt is within 0.04% of its target.
+**Fidelity (MEASURED, preregistration §8 as amended, A1.3):** on a 60-minute trace at 8 rps, each request counts as representable if its target is at least its own structural minimum (561–636 characters). The built sizes of the 25,372 representable prompts follow the Azure sample, conditioned the same way: the Kolmogorov–Smirnov distance is 0.0046 against a 5% critical value of 0.0131. Every representable prompt is built at exactly its target size in characters. A first run, before the amendment, used one global 636-character cutoff that wasn't preregistered. It gave 0.0060 against 0.0131, and its result is kept.
 
-Targets smaller than the template can build (**5.6%** of completions) are kept and flagged, never resampled. They come out a median 2.3× too large (10th–90th percentile 1.1×–11.5×). The fidelity claim covers representable targets only. The gateway rejects completions with `max_tokens` above 4,096; Azure's sample contains a few (2 of 26,874 requests in that trace).
+Targets smaller than the template can build (**5.6%** of completions) are kept and flagged, never resampled. They come out a median 2.3× too large (10th–90th percentile 1.1×–11.7×). The fidelity claim covers representable targets only. The gateway rejects completions with `max_tokens` above 4,096; Azure's sample contains a few (2 of 26,874 requests in that trace).
 
 **Why:** _to be written_
 

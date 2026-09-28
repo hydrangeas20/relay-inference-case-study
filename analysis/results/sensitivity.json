@@ -1,0 +1,621 @@
+{
+ "candidate": "C2",
+ "observed_range_rps": [
+  3.2,
+  82.83
+ ],
+ "gpu_window": {
+  "out_of_range_fraction": 0.0
+ },
+ "day_trace": {
+  "out_of_range_fraction": 0.28825462962962967,
+  "hourly_rate": [
+   2.715,
+   2.298,
+   2.118,
+   2.072,
+   2.135,
+   2.385,
+   3.002,
+   4.236,
+   6.295,
+   9.136,
+   12.351,
+   15.303,
+   17.498,
+   18.861,
+   19.629,
+   19.966,
+   19.719,
+   18.558,
+   16.342,
+   13.331,
+   10.09,
+   7.194,
+   4.992,
+   3.545
+  ],
+  "sigma_by_scenario_hourly": {
+   "edge": [
+    0.3226,
+    0.3226,
+    0.3226,
+    0.3226,
+    0.3226,
+    0.3226,
+    0.3226,
+    0.2923,
+    0.2543,
+    0.2231,
+    0.2007,
+    0.1861,
+    0.1775,
+    0.1729,
+    0.1705,
+    0.1695,
+    0.1702,
+    0.1739,
+    0.1819,
+    0.1954,
+    0.2155,
+    0.2427,
+    0.2759,
+    0.3112
+   ],
+   "poisson": [
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.2923,
+    0.2543,
+    0.2231,
+    0.2007,
+    0.1861,
+    0.1775,
+    0.1729,
+    0.1705,
+    0.1695,
+    0.1702,
+    0.1739,
+    0.1819,
+    0.1954,
+    0.2155,
+    0.2427,
+    0.2759,
+    0.3112
+   ],
+   "trend": [
+    0.3418,
+    0.3624,
+    0.3729,
+    0.3758,
+    0.3719,
+    0.3577,
+    0.3299,
+    0.2923,
+    0.2543,
+    0.2231,
+    0.2007,
+    0.1861,
+    0.1775,
+    0.1729,
+    0.1705,
+    0.1695,
+    0.1702,
+    0.1739,
+    0.1819,
+    0.1954,
+    0.2155,
+    0.2427,
+    0.2759,
+    0.3112
+   ]
+  }
+ },
+ "day_trace_out_of_range_queueing": {
+  "hour 00 edge s=0.2": {
+   "servers": 1,
+   "p95": 1.0783872841219395,
+   "p99": 2.5187495273009333
+  },
+  "hour 00 edge s=1.0": {
+   "servers": 4,
+   "p95": 4.170375529560696,
+   "p99": 7.370009760749314
+  },
+  "hour 00 poisson s=0.2": {
+   "servers": 1,
+   "p95": 0.48314774237877817,
+   "p99": 0.7907992644680033
+  },
+  "hour 00 poisson s=1.0": {
+   "servers": 4,
+   "p95": 0.8389151376458351,
+   "p99": 1.4540857397686584
+  },
+  "hour 00 trend s=0.2": {
+   "servers": 1,
+   "p95": 1.1499554878013658,
+   "p99": 2.763296655728312
+  },
+  "hour 00 trend s=1.0": {
+   "servers": 4,
+   "p95": 4.52006308635705,
+   "p99": 8.097480185015115
+  },
+  "hour 01 edge s=0.2": {
+   "servers": 1,
+   "p95": 0.5743239164137373,
+   "p99": 1.267186220169266
+  },
+  "hour 01 edge s=1.0": {
+   "servers": 3,
+   "p95": 7.654214380809314,
+   "p99": 11.877312812024305
+  },
+  "hour 01 poisson s=0.2": {
+   "servers": 1,
+   "p95": 0.3739381461661019,
+   "p99": 0.6143194564783048
+  },
+  "hour 01 poisson s=1.0": {
+   "servers": 3,
+   "p95": 1.8012200381957382,
+   "p99": 2.967956465270741
+  },
+  "hour 01 trend s=0.2": {
+   "servers": 1,
+   "p95": 0.7033393562411587,
+   "p99": 1.588479052819353
+  },
+  "hour 01 trend s=1.0": {
+   "servers": 3,
+   "p95": 9.729334119704532,
+   "p99": 14.963258025056481
+  },
+  "hour 02 edge s=0.2": {
+   "servers": 1,
+   "p95": 0.4757722804577837,
+   "p99": 0.9452177326258117
+  },
+  "hour 02 edge s=1.0": {
+   "servers": 3,
+   "p95": 4.329570655198962,
+   "p99": 9.867886056454985
+  },
+  "hour 02 poisson s=0.2": {
+   "servers": 1,
+   "p95": 0.3352697421853833,
+   "p99": 0.5462711623873011
+  },
+  "hour 02 poisson s=1.0": {
+   "servers": 3,
+   "p95": 1.287824033361209,
+   "p99": 2.0520521008229045
+  },
+  "hour 02 trend s=0.2": {
+   "servers": 1,
+   "p95": 0.5445994552965202,
+   "p99": 1.2722187232075435
+  },
+  "hour 02 trend s=1.0": {
+   "servers": 3,
+   "p95": 6.2375842545550935,
+   "p99": 12.29727537852885
+  },
+  "hour 03 edge s=0.2": {
+   "servers": 1,
+   "p95": 0.4558786712758972,
+   "p99": 0.8999833025367057
+  },
+  "hour 03 edge s=1.0": {
+   "servers": 3,
+   "p95": 3.991323626627141,
+   "p99": 8.043242632338906
+  },
+  "hour 03 poisson s=0.2": {
+   "servers": 1,
+   "p95": 0.3272394617109057,
+   "p99": 0.5328642218155666
+  },
+  "hour 03 poisson s=1.0": {
+   "servers": 3,
+   "p95": 1.2116397057239157,
+   "p99": 1.9313701514869375
+  },
+  "hour 03 trend s=0.2": {
+   "servers": 1,
+   "p95": 0.5277639103069602,
+   "p99": 1.0697714814579897
+  },
+  "hour 03 trend s=1.0": {
+   "servers": 3,
+   "p95": 5.53199547466561,
+   "p99": 10.494207367265954
+  },
+  "hour 04 edge s=0.2": {
+   "servers": 1,
+   "p95": 0.46851105666014514,
+   "p99": 0.9069848759701875
+  },
+  "hour 04 edge s=1.0": {
+   "servers": 3,
+   "p95": 4.707926982894194,
+   "p99": 9.113288182994726
+  },
+  "hour 04 poisson s=0.2": {
+   "servers": 1,
+   "p95": 0.3393880706570684,
+   "p99": 0.5578807892742781
+  },
+  "hour 04 poisson s=1.0": {
+   "servers": 3,
+   "p95": 1.3330859405662516,
+   "p99": 2.165978107133174
+  },
+  "hour 04 trend s=0.2": {
+   "servers": 1,
+   "p95": 0.553594668054528,
+   "p99": 1.2156201048854447
+  },
+  "hour 04 trend s=1.0": {
+   "servers": 3,
+   "p95": 6.643592834760938,
+   "p99": 12.396773727885293
+  },
+  "hour 05 edge s=0.2": {
+   "servers": 1,
+   "p95": 0.6161413214715936,
+   "p99": 1.2774239563858467
+  },
+  "hour 05 edge s=1.0": {
+   "servers": 3,
+   "p95": 9.268695069663687,
+   "p99": 14.620425487743315
+  },
+  "hour 05 poisson s=0.2": {
+   "servers": 1,
+   "p95": 0.3977722464707991,
+   "p99": 0.6522195505034425
+  },
+  "hour 05 poisson s=1.0": {
+   "servers": 3,
+   "p95": 2.3257427056540214,
+   "p99": 3.6258733592130525
+  },
+  "hour 05 trend s=0.2": {
+   "servers": 1,
+   "p95": 0.7536091282898225,
+   "p99": 1.8168752335449194
+  },
+  "hour 05 trend s=1.0": {
+   "servers": 3,
+   "p95": 11.648972868021271,
+   "p99": 17.054121613694818
+  },
+  "hour 06 edge s=0.2": {
+   "servers": 1,
+   "p95": 1.6303647408413084,
+   "p99": 3.678413788019581
+  },
+  "hour 06 edge s=1.0": {
+   "servers": 4,
+   "p95": 6.806647194791994,
+   "p99": 11.367383615594466
+  },
+  "hour 06 poisson s=0.2": {
+   "servers": 1,
+   "p95": 0.9560738244333036,
+   "p99": 3.1885220979488427
+  },
+  "hour 06 poisson s=1.0": {
+   "servers": 4,
+   "p95": 5.350121530276799,
+   "p99": 10.737445757815177
+  },
+  "hour 06 trend s=0.2": {
+   "servers": 1,
+   "p95": 1.7603109610080714,
+   "p99": 4.09662240750829
+  },
+  "hour 06 trend s=1.0": {
+   "servers": 4,
+   "p95": 7.000700424398553,
+   "p99": 11.625399477885253
+  }
+ },
+ "clustered_vs_raw_thursday": [
+  {
+   "hour": 0,
+   "rate": 25.67,
+   "azure_raw_gap_lt_1ms": 0.20128106640122048,
+   "clustered_gap_lt_1ms": 0.21542633648818013,
+   "canonical_gap_lt_1ms": 0.026506440363208414,
+   "azure_raw_last_50ms_share": 1.0819700510689865e-05,
+   "clustered_last_50ms_share": 0.1998228118888901,
+   "azure_raw_mean_cluster_size": 1.2202708404633074,
+   "clustered_mean_cluster_size": 1.24227140130336,
+   "canonical_mean_cluster_size": 1.0011914457453428
+  },
+  {
+   "hour": 1,
+   "rate": 23.09,
+   "azure_raw_gap_lt_1ms": 0.1825105579151276,
+   "clustered_gap_lt_1ms": 0.1985834888693868,
+   "canonical_gap_lt_1ms": 0.023513327092673793,
+   "azure_raw_last_50ms_share": 0.0,
+   "clustered_last_50ms_share": 0.1995080589340453,
+   "azure_raw_mean_cluster_size": 1.1953392890223484,
+   "clustered_mean_cluster_size": 1.2193125982723223,
+   "canonical_mean_cluster_size": 1.000707204303798
+  },
+  {
+   "hour": 2,
+   "rate": 24.38,
+   "azure_raw_gap_lt_1ms": 0.1918772933427536,
+   "clustered_gap_lt_1ms": 0.20930074677528854,
+   "canonical_gap_lt_1ms": 0.02446880650994575,
+   "azure_raw_last_50ms_share": 2.279072417526067e-05,
+   "clustered_last_50ms_share": 0.2012536631176384,
+   "azure_raw_mean_cluster_size": 1.207636300490854,
+   "clustered_mean_cluster_size": 1.234247170248513,
+   "canonical_mean_cluster_size": 1.0003968323337498
+  },
+  {
+   "hour": 3,
+   "rate": 18.62,
+   "azure_raw_gap_lt_1ms": 0.1513266812832789,
+   "clustered_gap_lt_1ms": 0.16282110330277683,
+   "canonical_gap_lt_1ms": 0.019061018957345972,
+   "azure_raw_last_50ms_share": 1.491468798472736e-05,
+   "clustered_last_50ms_share": 0.2025910738693766,
+   "azure_raw_mean_cluster_size": 1.1565674296087118,
+   "clustered_mean_cluster_size": 1.1724470393102648,
+   "canonical_mean_cluster_size": 1.0006207702770584
+  },
+  {
+   "hour": 4,
+   "rate": 14.29,
+   "azure_raw_gap_lt_1ms": 0.1209594339806014,
+   "clustered_gap_lt_1ms": 0.1200577369457936,
+   "canonical_gap_lt_1ms": 0.014396026541461333,
+   "azure_raw_last_50ms_share": 1.943710153941844e-05,
+   "clustered_last_50ms_share": 0.20283607708512133,
+   "azure_raw_mean_cluster_size": 1.1214619213250638,
+   "clustered_mean_cluster_size": 1.1203127335526766,
+   "canonical_mean_cluster_size": 1.0002095655433723
+  },
+  {
+   "hour": 5,
+   "rate": 12.55,
+   "azure_raw_gap_lt_1ms": 0.1110914362867704,
+   "clustered_gap_lt_1ms": 0.1147703729281768,
+   "canonical_gap_lt_1ms": 0.01332033788174139,
+   "azure_raw_last_50ms_share": 0.0,
+   "clustered_last_50ms_share": 0.20299113019832962,
+   "azure_raw_mean_cluster_size": 1.1109448858419306,
+   "clustered_mean_cluster_size": 1.1155618752897718,
+   "canonical_mean_cluster_size": 1.0008602191295073
+  },
+  {
+   "hour": 6,
+   "rate": 11.44,
+   "azure_raw_gap_lt_1ms": 0.09334855144612546,
+   "clustered_gap_lt_1ms": 0.10503593652018715,
+   "canonical_gap_lt_1ms": 0.012305386326274054,
+   "azure_raw_last_50ms_share": 0.00024283632831471587,
+   "clustered_last_50ms_share": 0.2000820008200082,
+   "azure_raw_mean_cluster_size": 1.0904149417393203,
+   "clustered_mean_cluster_size": 1.104654730614268,
+   "canonical_mean_cluster_size": 1.0009432802063707
+  },
+  {
+   "hour": 7,
+   "rate": 9.23,
+   "azure_raw_gap_lt_1ms": 0.07454780750594396,
+   "clustered_gap_lt_1ms": 0.08399405351833499,
+   "canonical_gap_lt_1ms": 0.009063631020509172,
+   "azure_raw_last_50ms_share": 0.0,
+   "clustered_last_50ms_share": 0.19851961968472234,
+   "azure_raw_mean_cluster_size": 1.0706252291937146,
+   "clustered_mean_cluster_size": 1.081665975534807,
+   "canonical_mean_cluster_size": 1.0
+  },
+  {
+   "hour": 8,
+   "rate": 8.71,
+   "azure_raw_gap_lt_1ms": 0.07518413417083825,
+   "clustered_gap_lt_1ms": 0.08044282757322962,
+   "canonical_gap_lt_1ms": 0.00978547233722243,
+   "azure_raw_last_50ms_share": 0.0,
+   "clustered_last_50ms_share": 0.19337033900962775,
+   "azure_raw_mean_cluster_size": 1.071916752123347,
+   "clustered_mean_cluster_size": 1.0780467478662195,
+   "canonical_mean_cluster_size": 1.0011220715490625
+  },
+  {
+   "hour": 9,
+   "rate": 8.79,
+   "azure_raw_gap_lt_1ms": 0.07398281526408895,
+   "clustered_gap_lt_1ms": 0.08125741399762752,
+   "canonical_gap_lt_1ms": 0.010056528935944282,
+   "azure_raw_last_50ms_share": 0.0,
+   "clustered_last_50ms_share": 0.20149836116747308,
+   "azure_raw_mean_cluster_size": 1.0704390328209827,
+   "clustered_mean_cluster_size": 1.0789147631845577,
+   "canonical_mean_cluster_size": 1.0013146897558334
+  },
+  {
+   "hour": 10,
+   "rate": 8.88,
+   "azure_raw_gap_lt_1ms": 0.07505712228864753,
+   "clustered_gap_lt_1ms": 0.07807449712869112,
+   "canonical_gap_lt_1ms": 0.008618528268772721,
+   "azure_raw_last_50ms_share": 3.129890453834116e-05,
+   "clustered_last_50ms_share": 0.19455252918287938,
+   "azure_raw_mean_cluster_size": 1.071595111922543,
+   "clustered_mean_cluster_size": 1.0751023412153204,
+   "canonical_mean_cluster_size": 1.0
+  },
+  {
+   "hour": 11,
+   "rate": 13.72,
+   "azure_raw_gap_lt_1ms": 0.11534333677581354,
+   "clustered_gap_lt_1ms": 0.11922551618863983,
+   "canonical_gap_lt_1ms": 0.013217363356969247,
+   "azure_raw_last_50ms_share": 0.0,
+   "clustered_last_50ms_share": 0.19711181184599008,
+   "azure_raw_mean_cluster_size": 1.114981577805505,
+   "clustered_mean_cluster_size": 1.1198960690931115,
+   "canonical_mean_cluster_size": 1.0
+  },
+  {
+   "hour": 12,
+   "rate": 26.8,
+   "azure_raw_gap_lt_1ms": 0.20411717146588718,
+   "clustered_gap_lt_1ms": 0.22570430780822057,
+   "canonical_gap_lt_1ms": 0.02728368084628423,
+   "azure_raw_last_50ms_share": 0.0001347499352163773,
+   "clustered_last_50ms_share": 0.20076768005864506,
+   "azure_raw_mean_cluster_size": 1.2232419779633346,
+   "clustered_mean_cluster_size": 1.2573456048131915,
+   "canonical_mean_cluster_size": 1.0008645544778538
+  },
+  {
+   "hour": 13,
+   "rate": 40.18,
+   "azure_raw_gap_lt_1ms": 0.2803454021279979,
+   "clustered_gap_lt_1ms": 0.2843935373629885,
+   "canonical_gap_lt_1ms": 0.040084153809834606,
+   "azure_raw_last_50ms_share": 4.148115372915572e-05,
+   "clustered_last_50ms_share": 0.2007543395361437,
+   "azure_raw_mean_cluster_size": 1.334831435538553,
+   "clustered_mean_cluster_size": 1.3423824827259476,
+   "canonical_mean_cluster_size": 1.0007310367695506
+  },
+  {
+   "hour": 14,
+   "rate": 59.12,
+   "azure_raw_gap_lt_1ms": 0.3673548981279603,
+   "clustered_gap_lt_1ms": 0.3609222777522527,
+   "canonical_gap_lt_1ms": 0.05873567537103137,
+   "azure_raw_last_50ms_share": 0.00015036392769374627,
+   "clustered_last_50ms_share": 0.19860383780514676,
+   "azure_raw_mean_cluster_size": 1.4899310463710804,
+   "clustered_mean_cluster_size": 1.4749341837460201,
+   "canonical_mean_cluster_size": 1.0014164501404041
+  },
+  {
+   "hour": 15,
+   "rate": 63.85,
+   "azure_raw_gap_lt_1ms": 0.38121671945150176,
+   "clustered_gap_lt_1ms": 0.3769576338585216,
+   "canonical_gap_lt_1ms": 0.06346219783987657,
+   "azure_raw_last_50ms_share": 3.480303656494029e-05,
+   "clustered_last_50ms_share": 0.20232916050486638,
+   "azure_raw_mean_cluster_size": 1.5161114356918461,
+   "clustered_mean_cluster_size": 1.5057473758397086,
+   "canonical_mean_cluster_size": 1.0017154734071223
+  },
+  {
+   "hour": 16,
+   "rate": 62.42,
+   "azure_raw_gap_lt_1ms": 0.3789187481365782,
+   "clustered_gap_lt_1ms": 0.3745075658318418,
+   "canonical_gap_lt_1ms": 0.06151102493173348,
+   "azure_raw_last_50ms_share": 0.00010679862229777236,
+   "clustered_last_50ms_share": 0.19970864903756474,
+   "azure_raw_mean_cluster_size": 1.5126613568838285,
+   "clustered_mean_cluster_size": 1.5019935619657039,
+   "canonical_mean_cluster_size": 1.0010619561199336
+  },
+  {
+   "hour": 17,
+   "rate": 71.31,
+   "azure_raw_gap_lt_1ms": 0.41028987257449384,
+   "clustered_gap_lt_1ms": 0.40084227547824447,
+   "canonical_gap_lt_1ms": 0.06879086254430879,
+   "azure_raw_last_50ms_share": 0.00028827425009738994,
+   "clustered_last_50ms_share": 0.19991208342654845,
+   "azure_raw_mean_cluster_size": 1.579042446354223,
+   "clustered_mean_cluster_size": 1.5541438992430459,
+   "canonical_mean_cluster_size": 1.0
+  },
+  {
+   "hour": 18,
+   "rate": 78.87,
+   "azure_raw_gap_lt_1ms": 0.4407380796404697,
+   "clustered_gap_lt_1ms": 0.402821046586749,
+   "canonical_gap_lt_1ms": 0.07567964205816555,
+   "azure_raw_last_50ms_share": 0.00019723379601094648,
+   "clustered_last_50ms_share": 0.19861747678746397,
+   "azure_raw_mean_cluster_size": 1.652466058132754,
+   "clustered_mean_cluster_size": 1.5475450628628276,
+   "canonical_mean_cluster_size": 1.0
+  },
+  {
+   "hour": 19,
+   "rate": 79.52,
+   "azure_raw_gap_lt_1ms": 0.44098938448157216,
+   "clustered_gap_lt_1ms": 0.40435964622658077,
+   "canonical_gap_lt_1ms": 0.07798898061951533,
+   "azure_raw_last_50ms_share": 0.00011177867821713008,
+   "clustered_last_50ms_share": 0.1995728882379181,
+   "azure_raw_mean_cluster_size": 1.6521287263644175,
+   "clustered_mean_cluster_size": 1.5505287551285845,
+   "canonical_mean_cluster_size": 1.0016772867434964
+  },
+  {
+   "hour": 20,
+   "rate": 72.67,
+   "azure_raw_gap_lt_1ms": 0.41640324288373554,
+   "clustered_gap_lt_1ms": 0.4020190844973033,
+   "canonical_gap_lt_1ms": 0.07024829969939224,
+   "azure_raw_last_50ms_share": 3.0578701934102895e-05,
+   "clustered_last_50ms_share": 0.20071297687050788,
+   "azure_raw_mean_cluster_size": 1.5934043003560288,
+   "clustered_mean_cluster_size": 1.5550756861214496,
+   "canonical_mean_cluster_size": 1.0001655088796624
+  },
+  {
+   "hour": 21,
+   "rate": 52.53,
+   "azure_raw_gap_lt_1ms": 0.33595286950267594,
+   "clustered_gap_lt_1ms": 0.3321084448668198,
+   "canonical_gap_lt_1ms": 0.05230424843330113,
+   "azure_raw_last_50ms_share": 4.7595627548349224e-05,
+   "clustered_last_50ms_share": 0.2008648089289674,
+   "azure_raw_mean_cluster_size": 1.4288591362360774,
+   "clustered_mean_cluster_size": 1.4206345356668744,
+   "canonical_mean_cluster_size": 1.0011966474829908
+  },
+  {
+   "hour": 22,
+   "rate": 37.84,
+   "azure_raw_gap_lt_1ms": 0.2670768236814284,
+   "clustered_gap_lt_1ms": 0.27324287771039657,
+   "canonical_gap_lt_1ms": 0.03837537247964503,
+   "azure_raw_last_50ms_share": 0.00010278322284136878,
+   "clustered_last_50ms_share": 0.19876824187250502,
+   "azure_raw_mean_cluster_size": 1.3137406898165043,
+   "clustered_mean_cluster_size": 1.3248869116078257,
+   "canonical_mean_cluster_size": 1.001296110439811
+  },
+  {
+   "hour": 23,
+   "rate": 29.58,
+   "azure_raw_gap_lt_1ms": 0.21806912096168293,
+   "clustered_gap_lt_1ms": 0.23886438229018153,
+   "canonical_gap_lt_1ms": 0.02875552071582892,
+   "azure_raw_last_50ms_share": 5.6348080878278755e-05,
+   "clustered_last_50ms_share": 0.20199410571439508,
+   "azure_raw_mean_cluster_size": 1.241612423906158,
+   "clustered_mean_cluster_size": 1.2755349657279793,
+   "canonical_mean_cluster_size": 1.0
+  }
+ ]
+}
