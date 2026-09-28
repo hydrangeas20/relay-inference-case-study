@@ -1,6 +1,6 @@
 # Phase 2 validation: preregistration
 
-- **Version:** 1 (draft with two open items; see §10)
+- **Version:** 1, amended by [Amendment 1](#amendment-1-2026-09-28-before-thursday-validation) (resolves §10; revises §8's conditioning)
 - **Date:** 2026-09-28
 - **Owner:** hydrangeas20
 - **Decisions:** [ADR-0005](../decisions/0005-traffic-model-revision.md)
@@ -167,6 +167,8 @@ The clustered variant is compared with **raw** Thursday timestamps descriptively
 
 ## 10. Open items (must be resolved by amendment before any candidate validation)
 
+*Both resolved by [Amendment 1](#amendment-1-2026-09-28-before-thursday-validation).*
+
 **O1: The sign-consistency clause** ("errors don't all share one sign across the six windows") **rejects real data.** In leave-one-day-out comparisons on training days (one day's pooled band curve against the median of the other days'), 12 of 13 comparisons had all six errors in the same direction. Day-to-day variation shifts the whole curve, so an ideal model of the population would fail this clause about 92% of the time. The magnitude clause passed 13 of 13 of the same comparisons.
 
 **O2: The 60–120 rps tolerance can't be estimated as specified.** Only Mon and Tue have ≥ 3 eligible hours in the band. The two-day standard deviation gives a tolerance of 0.0035, which can't be checked for false failures. Options evaluated on training data:
@@ -188,3 +190,69 @@ The clustered variant is compared with **raw** Thursday timestamps descriptively
 Results are reported in full and work stops. Wednesday runs **exactly once, only after explicit written authorisation**, with the selected candidate and every procedure exactly as written here. A failure is recorded, and it limits Phase 2's claims. There's no tuning, threshold change, model change or rerun against Wednesday (ADR-0005, D9). Any later revision is a new validation cycle, and must state that this Azure week no longer contains an unused holdout.
 
 **Merge gate:** Phase 2 stays unmerged until the preregistered Wednesday evaluation has been run exactly once and its result, pass or fail, has been documented and reviewed.
+
+---
+
+## Amendment 1 (2026-09-28, before Thursday validation)
+
+- **Decided by:** hydrangeas20, 2026-09-28
+- **Committed:** before any Thursday candidate validation, and before the amended prompt-fidelity run. No Thursday burstiness or queueing statistic, and no Wednesday data of any kind, had been computed when this was written.
+
+This amendment resolves O1 and O2 (§10) and corrects the conditioning in the prompt-fidelity test (§8). Where it conflicts with the sections above, it takes precedence. The text above is otherwise unchanged.
+
+### A1.1 O1: the sign clause becomes a reported diagnostic
+
+- **Pass/fail (§6.2, §6.3):** a band passes if |predicted − observed| ≤ tolerance at all six windows. That's the only clause. The rule "errors don't all share one sign" is removed from pass/fail.
+- **Reported diagnostic:** for every band check (Thursday bands, band holdouts, and later the Wednesday bands), the sign of the error at each of the six windows and whether all six share one sign are reported. They don't affect any verdict.
+- **Not replaced by a recalibrated sign threshold.** Thirteen leave-one-day-out comparisons are too few independent comparisons to calibrate one.
+- **Reason:** in the training leave-one-day-out comparisons (§10, O1), 12 of 13 real day-versus-other-days comparisons had all six errors sharing a sign. Day-level shifts move the whole curve, so the clause doesn't separate model failure from ordinary day-to-day variation, and it would reject realistic data about 92% of the time.
+
+### A1.2 O2: one tolerance from the merged 30–120 rps population, two separate evaluation bands
+
+- **Tolerance:** the §6.1 method applied to the merged 30–120 rps training population (days with ≥ 3 eligible hours in 30–120: Fri, Mon, Tue): **0.0102**.
+- **Evaluation stays separate.** Thursday, and later Wednesday, check and report two bands:
+  - **30–60 rps:** error against 0.0102
+  - **60–120 rps:** error against 0.0102
+
+  The two bands' curves are not pooled for evaluation, so performance in one band can't hide failure in the other.
+- **This supersedes 0.0146 for 30–60.** It applies to the Thursday and Wednesday band checks (§6.2) and to the 30–60 and 60–120 rate-band holdouts (§6.3). The 3–10 and 10–30 tolerances are unchanged.
+
+| Band | Tolerance |
+|---|---|
+| 3–10 rps | 0.0985 |
+| 10–30 rps | 0.0321 |
+| 30–60 rps | **0.0102** (was 0.0146) |
+| 60–120 rps | **0.0102** |
+
+- **Reason:**
+  - The original 60–120 estimate uses only Mon and Tue, so it can't get the same leave-one-day-out training check as the other bands.
+  - Borrowing the 30–60 tolerance has no direct statistical basis.
+  - The merged 30–120 estimate uses the available higher-rate training population across three days, and passed its training check in 3 of 3 comparisons.
+- **Disclosure:** before this decision, the owner had been told C1's in-sample training error in the 60–120 band: **0.0062**. That value passes options (a) and (c) and fails (b). C1's in-sample 30–60 error (0.0069) was also known, and passes at 0.0102. Option (a) was chosen on the tolerance-estimation method, not on C1's pass/fail outcome. Both numbers are in-sample (training days). No Thursday or Wednesday value was known.
+
+### A1.3 Prompt fidelity: representability is judged per request
+
+**Correction.** The first fidelity run conditioned both samples on one global cutoff, T = 636 characters: the largest per-request template minimum in the trace. That cutoff wasn't preregistered. §8's wording ("restricted to values at or above the minimum representable size") didn't fix it, and it was chosen when the test first ran. It also excluded 115 targets that were representable for their own request.
+
+**Disclosure.** The first result was observed before this correction: KS D = 0.00598 against a 5% critical value of 0.01309 (PASS), n = 25,257 built and 18,747 Azure (`analysis/results/validation-prompt-fidelity.json`). That file is kept unchanged. The amended result is written to a separate file, and both are reported.
+
+**Amended procedure** (same evaluation trace, same gateway measurement, same 3.5 characters per token):
+
+1. **Per-request minimum.** For each completion i, m_i = the length of Relay's completion prompt for that request's own ID, repository, path and language, with an empty code prefix and no context files, plus the 100-character minimum prefix. The generator drops context files that don't fit, so this is the smallest prompt that is structurally possible for request i.
+2. **Inclusion.** Request i is in the conditional fidelity evaluation if its target in characters, round(target_tokens × 3.5), is ≥ m_i.
+3. **Structurally unrepresentable targets** (target < m_i) are kept as generated, flagged, and excluded from pass/fail. The report gives their count and fraction, target sizes, built sizes and inflation (built ÷ target). No global cutoff is used for inclusion.
+4. **Reference distribution (matched mixture).** The null distribution for an included request's size is the Azure size sample conditioned on ≥ m_i. The reference CDF is the average of those conditional CDFs over the n included requests: F_ref(x) = (1/n) Σ_i F_Azure(x | round(X × 3.5) ≥ m_i), computed from the training-derived 20,000-row Azure sample.
+5. **Statistic and threshold.** D = sup_x |F_built(x) − F_ref(x)|, evaluated at every built and Azure value. The test passes if D < 1.358·√((n+m)/(n·m)), with n = included requests and m = Azure sample values ≥ min_i m_i. Using all m of those values makes the threshold slightly stricter than the effective reference sample size would.
+6. **Also reported:** built-versus-expected mismatches; the ratio of built size to target size for included requests (1st, 50th and 99th percentiles, and the count more than 0.5% short); and gateway rejections, which are excluded as before.
+
+**Known imperfection.** m_i depends on the file the generator picks, and the pick depends on the target, which favours files long enough for it. Per-request minimums in the first run ranged from 561 to 636 characters (160–182 tokens), so the dependence can affect only that narrow range.
+
+### A1.4 Other findings (no change to procedure)
+
+- The gateway's 4,096 `max_tokens` limit is unchanged in Phase 2. Rejected Azure-sized requests are reported as a limitation and product constraint.
+- The estimator's slight upward bias at low rates and τ's dependence on the detrending window are documented as limitations (ADR-0004). They don't change the estimator.
+- The possible retry or duplicate signal at low rates (identical context sizes among sub-millisecond pairs) is an exploratory finding. It doesn't change the canonical sub-second model.
+
+### A1.5 Unchanged
+
+Everything else stays as written: the data split and holdout guard, the estimator, the candidates, the queueing test and its thresholds, the selection rule (§11) and the holdout procedure and merge gate (§12). Wednesday is still not authorised.
