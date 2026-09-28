@@ -15,7 +15,7 @@ dist/
 .env
 
 # Local code corpus (built by `make corpus` from corpus/repos.toml)
-data/
+/data/
 
 # Generated traces can be hundreds of MB; only the smoke trace is committed.
 traces/*.jsonl
