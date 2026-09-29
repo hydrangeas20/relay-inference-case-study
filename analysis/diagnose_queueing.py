@@ -291,7 +291,11 @@ def spearman(x: list[float], y: list[float], n_perm: int = 5000) -> dict[str, fl
     r = float(np.corrcoef(ra, rb)[0, 1])
     rng = np.random.default_rng(0)
     null = [abs(np.corrcoef(ra, rng.permutation(rb))[0, 1]) for _ in range(n_perm)]
-    return {"rho": round(r, 3), "n": int(keep.sum()), "perm_p": float(np.mean(np.array(null) >= abs(r)))}
+    return {
+        "rho": round(r, 3),
+        "n": int(keep.sum()),
+        "perm_p": float(np.mean(np.array(null) >= abs(r))),
+    }
 
 
 def associations(thu: list[dict[str, Any]]) -> dict[str, Any]:
@@ -354,8 +358,16 @@ def validation_breakdown() -> dict[str, Any]:
             for g in sorted({key(c) for c in cells}, key=str):
                 cs = [c for c in cells if key(c) == g]
                 s_thr = [(c, 0.01 * c["service_s"]) for c in cs]
-                model = [c["model"]["p99"] / c["azure"]["p99"] for c, t in s_thr if c["azure"]["p99"] >= t and c["model"]["p99"] >= t]
-                pois = [c["poisson"]["p99"] / c["azure"]["p99"] for c, t in s_thr if c["azure"]["p99"] >= t and c["poisson"]["p99"] >= t]
+                model = [
+                    c["model"]["p99"] / c["azure"]["p99"]
+                    for c, t in s_thr
+                    if c["azure"]["p99"] >= t and c["model"]["p99"] >= t
+                ]
+                pois = [
+                    c["poisson"]["p99"] / c["azure"]["p99"]
+                    for c, t in s_thr
+                    if c["azure"]["p99"] >= t and c["poisson"]["p99"] >= t
+                ]
                 label = f"{gname}={common.RATE_BANDS[int(str(g))] if gname == 'band' else g}"
                 res[label] = {"cells": len(cs), "in_band": sum(c["verdict"]["in_band"] for c in cs),
                               "out_of_bounds": sum(c["verdict"]["out_of_bounds"] for c in cs),
@@ -373,8 +385,13 @@ def main() -> None:
         "wednesday_accessed": False,
         "raw_sha256": common.RAW_SHA256,
         "reference_sha256": common.sha256_file(REFERENCE),
-        "seeds": {"stats": SEEDS_STATS, "block_shuffle": SEEDS_BLOCK, "sigma_reading": SEEDS_BIAS,
-                  "surrogates": SURROGATE_SEED, "scheme": "validate.py's (10000*hour + seed)"},  # fmt: skip
+        "seeds": {
+            "stats": SEEDS_STATS,
+            "block_shuffle": SEEDS_BLOCK,
+            "sigma_reading": SEEDS_BIAS,
+            "surrogates": SURROGATE_SEED,
+            "scheme": "validate.py's (10000*hour + seed)",
+        },  # fmt: skip
         "validation_breakdown": validation_breakdown(),
         "thursday": thu,
         "training": train,
