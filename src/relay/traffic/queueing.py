@@ -109,12 +109,28 @@ class CellVerdict:
 
 
 def judge_cell(
-    model: dict[str, float], poisson: dict[str, float], azure: dict[str, float], s: float
+    model: dict[str, float],
+    poisson: dict[str, float],
+    azure: dict[str, float],
+    s: float,
+    criterion_3: str = "clarified",
 ) -> CellVerdict:
+    """Criteria 1-3 for one cell.
+
+    criterion_3="clarified" (preregistration Amendment 2, A2.3, the rule for future runs):
+    a metric where Azure and the model both agree near zero is non-informative; the model
+    beats Poisson if it is strictly closer on every informative metric; a cell with no
+    informative metric is a tie. criterion_3="literal" reproduces the rule as run on
+    Thursday: strictly smaller error on both metrics, tie only if model and control
+    both agree near zero on both.
+    """
+    if criterion_3 not in ("clarified", "literal"):
+        raise ValueError(criterion_3)
     in_band = True
     out = False
     m_err, p_err = [], []
-    tie = True
+    informative = []
+    literal_tie = True
     for key in ("p95", "p99"):
         mv = judge(model[key], azure[key], s)
         pv = judge(poisson[key], azure[key], s)
@@ -123,11 +139,16 @@ def judge_cell(
                 (not mv.fails_near_zero) and mv.ratio is not None and BAND[0] <= mv.ratio <= BAND[1]
             )
             in_band &= ok
+            informative.append(mv.log_error < pv.log_error)
         out |= _out_of_bounds(mv, azure[key])
         m_err.append(mv.log_error)
         p_err.append(pv.log_error)
-        tie &= mv.agrees_near_zero and pv.agrees_near_zero
-    beats = None if tie else all(m < p for m, p in zip(m_err, p_err, strict=True))
+        literal_tie &= mv.agrees_near_zero and pv.agrees_near_zero
+    beats: bool | None
+    if criterion_3 == "literal":
+        beats = None if literal_tie else all(m < p for m, p in zip(m_err, p_err, strict=True))
+    else:
+        beats = all(informative) if informative else None
     return CellVerdict(in_band=in_band, out_of_bounds=out, beats_poisson=beats)
 
 

@@ -176,6 +176,18 @@ def select(results: dict[str, Any]) -> dict[str, Any]:
             "criterion_1_fraction": frac}  # fmt: skip
 
 
+def holdout_gate(thursday: Path, candidate: str) -> None:
+    """Amendment 2, A2.2: Wednesday only for a candidate that passed Thursday."""
+    if not thursday.exists():
+        sys.exit("no Thursday results: the holdout needs a candidate that passed Thursday")
+    sel = json.loads(thursday.read_text()).get("selection", {})
+    if sel.get("provisional") or sel.get("selected") != candidate:
+        sys.exit(
+            "no candidate passed Thursday (or this isn't the selected one): the validation "
+            "cycle stops and Wednesday stays untouched (preregistration Amendment 2, A2.2)"
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--holdout", choices=("C1", "C2"),
@@ -188,6 +200,8 @@ def main() -> None:
     out_path = RESULTS / f"validation-{split}.json"
     if args.holdout and out_path.exists():
         sys.exit(f"{out_path} exists: the holdout is evaluated exactly once (preregistration §12)")
+    if args.holdout:
+        holdout_gate(RESULTS / "validation-validation.json", args.holdout)
 
     rows = hour_rows(split, allow_holdout=bool(args.holdout))
     models = {n: load_candidate(reference, n) for n in names}

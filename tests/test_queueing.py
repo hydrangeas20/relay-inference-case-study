@@ -1,4 +1,7 @@
+import json
 import math
+import sys
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -80,3 +83,30 @@ def test_acceptance_thresholds() -> None:
     )
     result = accept(ties)
     assert result.ties == 5 and result.non_tie == 5 and result.criterion_3
+
+
+def test_criterion_3_clarified_ignores_metrics_where_model_and_azure_agree_near_zero() -> None:
+    s = 1.0
+    azure = {"p95": 0.0, "p99": 1.0}
+    model = {"p95": 0.0, "p99": 1.1}  # agrees near zero on p95, close on p99
+    poisson = {"p95": 0.0, "p99": 0.3}  # also near zero on p95, far on p99
+    assert judge_cell(model, poisson, azure, s, "literal").beats_poisson is False
+    assert judge_cell(model, poisson, azure, s).beats_poisson is True
+    both_zero = {"p95": 0.0, "p99": 0.0}
+    assert judge_cell(both_zero, poisson, both_zero, s).beats_poisson is None  # excluded
+    # Near-zero failure is still an infinite error on an informative metric.
+    assert judge_cell({"p95": 0.5, "p99": 1.1}, poisson, azure, s).beats_poisson is False
+
+
+def test_holdout_gate_refuses_after_a_failed_thursday(tmp_path: Path) -> None:
+    sys.path.insert(0, "analysis")
+    import validate  # noqa: PLC0415
+
+    f = tmp_path / "thu.json"
+    f.write_text(json.dumps({"selection": {"selected": "C2", "provisional": True}}))
+    with pytest.raises(SystemExit):
+        validate.holdout_gate(f, "C2")
+    f.write_text(json.dumps({"selection": {"selected": "C1"}}))
+    with pytest.raises(SystemExit):
+        validate.holdout_gate(f, "C2")
+    validate.holdout_gate(f, "C1")  # a passing, selected candidate is allowed through
