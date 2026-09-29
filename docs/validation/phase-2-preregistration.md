@@ -1,6 +1,6 @@
 # Phase 2 validation: preregistration
 
-- **Version:** 1, amended by [Amendment 1](#amendment-1-2026-09-28-before-thursday-validation) (resolves §10; revises §8's conditioning)
+- **Version:** 1, amended by [Amendment 1](#amendment-1-2026-09-28-before-thursday-validation) (resolves §10; revises §8's conditioning) and [Amendment 2](#amendment-2-2026-09-29-after-thursday-validation) (closes this validation cycle; clarifies criterion 3)
 - **Date:** 2026-09-28
 - **Owner:** hydrangeas20
 - **Decisions:** [ADR-0005](../decisions/0005-traffic-model-revision.md)
@@ -256,3 +256,68 @@ This amendment resolves O1 and O2 (§10) and corrects the conditioning in the pr
 ### A1.5 Unchanged
 
 Everything else stays as written: the data split and holdout guard, the estimator, the candidates, the queueing test and its thresholds, the selection rule (§11) and the holdout procedure and merge gate (§12). Wednesday is still not authorised.
+
+---
+
+## Amendment 2 (2026-09-29, after Thursday validation)
+
+- **Decided by:** hydrangeas20, 2026-09-29
+- **Committed:** after the Thursday results (`4a0cbc3`) and before any further diagnostic analysis. No Wednesday data of any kind has been accessed.
+
+Unlike Amendment 1, this amendment is written **after** Thursday's results were observed. It changes no threshold, candidate or verdict. It records the outcome, closes this validation cycle, and clarifies one rule for any future cycle.
+
+### A2.1 Outcome of Thursday validation
+
+1. **Neither C1 nor C2 passed Thursday validation** (§6.2, §6.3, §7 as amended by Amendment 1). Results: `analysis/results/validation-validation.json`.
+
+   | | C1 | C2 |
+   |---|---|---|
+   | Thursday band checks (§6.2) | Fail (30–60 rps: 0.0113 vs 0.0102) | Pass |
+   | Interpolation holdouts (§6.3) | Pass | Pass |
+   | Queueing criterion 1 (≥ 80% of cells in band) | Fail (44/96) | Fail (47/96) |
+   | Queueing criterion 2 (no cell out of bounds) | Fail (25 cells) | Fail (27 cells) |
+   | Queueing criterion 3 (beats Poisson in ≥ 80%), as run | Fail (58/87) | Fail (58/87) |
+
+2. **C2 is a provisional fallback only.** §11 names it because it had the larger criterion-1 fraction (0.490 vs 0.458). It is **not validated** and must not become the canonical or default model.
+3. **`traffic/relay.toml` stays unchanged** (`candidate = "C1"`, marked provisional) for now. Neither candidate is validated. The default is a placeholder, not a validated choice.
+4. **Wednesday won't be run.** No candidate passed the Thursday gate, so there is no validated candidate to evaluate. The holdout stays untouched and remains available to a future validation cycle.
+
+### A2.2 Gate from Thursday to Wednesday (prospective)
+
+This rule applies to this and every future validation cycle on this dataset:
+
+- **At least one candidate passes Thursday:** the passing candidates are eligible for selection under §11, and the selected candidate gets one Wednesday evaluation (§12).
+- **No candidate passes Thursday:** the validation cycle stops. Wednesday stays untouched. §11's provisional choice is recorded for information only, and gives no candidate a right to a Wednesday evaluation.
+
+`analysis/validate.py --holdout` enforces this: it refuses to run unless the Thursday results file shows a non-provisional selection.
+
+### A2.3 Criterion 3 clarified (near-zero metrics)
+
+**The ambiguity.** §7 criterion 3 says a cell counts if "for both p95 and p99, the model's error |log R| is strictly smaller than the control's, where near-zero agreement counts as error 0." Read literally, when Azure and the candidate are both near zero on one metric, the candidate's error there is 0. If the control is also near zero on that metric, its error is 0 too. Since 0 isn't strictly smaller than 0, the cell can't count, even when the candidate is closer on the other metric.
+
+**Clarified rule:**
+
+- A metric (p95 or p99) where Azure and the candidate are both in the near-zero-agreement state (§7) is **non-informative** for criterion 3.
+- The remaining informative metric decides the comparison: the candidate beats the control if its |log R| is strictly smaller on every informative metric, using the §7 errors (near-zero failure = infinite).
+- If both metrics are non-informative, the cell is non-informative (tied) and is excluded from criterion 3's denominator.
+
+Criteria 1 and 2 and every threshold are unchanged.
+
+**Disclosure.** This ambiguity was found **after** the Thursday results were observed, by an independent re-implementation of §7 from the text. The clarification is adopted because the literal reading penalises a candidate for agreeing with Azure. It is not adopted to change an outcome.
+
+**Both results are preserved:**
+
+| Criterion 3 on Thursday | C1 | C2 |
+|---|---|---|
+| Original literal interpretation (as run, stored in `validation-validation.json`) | 58/87 (66.7%), fail | 58/87 (66.7%), fail |
+| Clarified interpretation (recomputed from the stored cell values) | **73/87 (83.9%), pass** | **73/87 (83.9%), pass** |
+
+Under the clarified rule, 15 cells change from "doesn't beat Poisson" to "beats Poisson", all at 60% utilisation. The same 9 cells are excluded under both readings. Recomputation: `analysis/results/validation-validation-criterion3-clarified.json`. The original results file is unchanged.
+
+**The overall Thursday verdict doesn't change.** Both candidates still fail queueing criteria 1 and 2, and therefore the queueing test and Thursday validation.
+
+### A2.4 What happens next
+
+- Further analysis of this failure is **diagnostic**: it uses training days and Thursday only, and it doesn't tune C1 or C2, create a new candidate, change thresholds or search parameters.
+- A revised model is a **new validation cycle** with its own preregistration. Thursday has now been used to reveal this failure, so a new cycle has to either justify reusing Thursday as its validation split or define a new one. It must also state which data informed the revision.
+- Wednesday stays untouched until a future cycle's candidate passes that cycle's pre-Wednesday gate.
