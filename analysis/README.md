@@ -34,6 +34,9 @@ Burstiness analyses use **de-jittered** timestamps (each redrawn uniformly withi
 | Validation (preregistered) | `validate.py` | validation split (and, once, holdout) | `results/validation-<split>.json` | Yes |
 | Prompt fidelity (preregistered, Amendment 1) | `validate_prompt_fidelity.py` | code corpus + reference sizes | `results/validation-prompt-fidelity-amended.json`; the first, pre-amendment result stays in `results/validation-prompt-fidelity.json` and is never overwritten | Yes |
 | Sensitivity (preregistered, descriptive) | `sensitivity.py` | selected candidate | `results/sensitivity.json` | Yes |
+| Criterion 3 clarified (Amendment 2) | recomputed from stored cells | `results/validation-validation.json` | `results/validation-validation-criterion3-clarified.json` | Yes |
+| Queueing-failure diagnosis (Amendment 2, A2.4) | `diagnose_queueing.py` | training + validation splits (never holdout) | `results/diagnosis-queueing/diagnosis.json`; memo in `docs/validation/phase-2-queueing-diagnosis.md` | Yes |
+| Diagnosis figures | `plot_diagnosis.py`, run with `uv run --with matplotlib` (matplotlib isn't a project dependency) | `diagnosis.json` | `results/diagnosis-queueing/fig*.png` | Yes |
 
 The one estimator used everywhere is `relay.traffic.stats.rate_cv2`. `validation_config.py` holds the frozen preregistration values; `validate.py` and `sensitivity.py` refuse to run while preregistration items are unresolved.
 
