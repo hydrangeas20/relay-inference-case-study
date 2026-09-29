@@ -4,6 +4,24 @@
 
 Decisions: [ADR-0004](../decisions/0004-traffic-model.md).
 
+## Status (2026-09-29)
+
+**The burstiness model isn't validated.** The first validation cycle ended with no candidate passing. It is closed by [preregistration Amendment 2](../validation/phase-2-preregistration.md#amendment-2-2026-09-29-after-thursday-validation).
+
+| | Status | Evidence |
+|---|---|---|
+| Daily envelope | Plausibility-checked (one ratio, in-sample) | `make traffic-check` |
+| Burstiness curve at 1–60 s, out of sample | C2 passed all four Thursday rate bands; C1 failed 30–60 rps. Both passed the rate-band holdouts | `analysis/results/validation-validation.json` |
+| **Queue tails (the property that matters for capacity)** | **Failed.** Both candidates fail criteria 1 and 2 (44 and 47 of 96 cells in band; 25 and 27 cells out of bounds). Criterion 3 fails as run (58/87) and passes under the clarified rule (73/87), which doesn't change the verdict | Same file, plus `validation-validation-criterion3-clarified.json` |
+| Prompt sizes | Validated for representable targets (per-request, matched-mixture KS) | `validation-prompt-fidelity-amended.json` |
+| Trace identity, reproducibility | Tested | `make check` |
+
+- **What remains provisional.** C2 is the selection rule's *fallback* only. It is **not validated** and isn't the default. `traffic/relay.toml` still names C1, marked provisional. Any queueing result generated with either candidate carries this limitation.
+- **Why the failure matters.** Both candidates overestimate p99 wait by a median of about 1.3–1.5× at 80% utilisation. So capacity sized on these traces would be conservative, by an amount that isn't known. It's worse with 1 s service times and at high utilisation. For C1 the same overshoot appears on training days (C2 wasn't run there), so it isn't a Thursday artefact. Poisson is far worse in the other direction (about 0.2–0.3×). The bursty model is closer but not good enough to support tail-latency claims.
+- **Not tuned away.** No threshold, candidate or parameter was changed after the results were seen. Amendment 2 records the one post-hoc clarification (criterion 3), with both results, and states that it doesn't change the verdict.
+- **Wednesday is untouched.** No Wednesday timestamp, token count or statistic has been computed. The loader drops Wednesday lines by date prefix before parsing any field; the only contact with Wednesday bytes is the whole-file SHA-256 check and that prefix filter. It won't be run in this cycle, because no candidate passed Thursday (A2.2). It remains available as the final test for a future cycle.
+- **Next investigation.** The [queueing diagnosis](../validation/phase-2-queueing-diagnosis.md) shows, with surrogate experiments, that the model's per-second count distribution (more right-skewed at 5–10 s) and its time structure at 5–30 s are each sufficient to raise queue tails. Neither is constrained by the fitted 1–60 s variance curve. It proposes four revised model classes and a fresh validation protocol. The choice is pending review; nothing has been implemented.
+
 ## Acceptance criteria
 
 Revised after the 2026-09-28 verification audit ([ADR-0005](../decisions/0005-traffic-model-revision.md)). Validation follows the [preregistration](../validation/phase-2-preregistration.md).
@@ -15,9 +33,10 @@ Revised after the 2026-09-28 verification audit ([ADR-0005](../decisions/0005-tr
 - [x] Generated traffic reproduces the training bands' curves in-sample (`make traffic-check`; shows the generator implements the fit, not validation)
 - [x] Open items O1 and O2 resolved by a dated amendment before Thursday (preregistration Amendment 1)
 - [ ] Out-of-sample band checks pass on Thursday: **C2 passed all four bands; C1 failed 30–60 rps** (0.0113 vs 0.0102). Both passed the rate-band holdouts
-- [ ] Queueing test passes on Thursday and beats Poisson: **both candidates failed all three criteria** (in band 44 and 47 of 96 cells, needed 77; out of bounds 25 and 27, needed 0; beat Poisson in 58 of 87 non-tie cells, needed 70)
-- [x] Selection rule applied: no candidate passed; **C2 recorded as the provisional choice** (criterion-1 fraction 0.49 vs 0.46)
-- [ ] Wednesday holdout evaluated exactly once, and the result documented and reviewed (not yet authorised)
+- [ ] Queueing test passes on Thursday and beats Poisson: **both candidates failed** (in band 44 and 47 of 96 cells, needed 77; out of bounds 25 and 27, needed 0; beat Poisson in 58/87 as run, 73/87 under Amendment 2's clarified criterion 3, needed 70)
+- [x] Queueing failure diagnosed on training and Thursday data, without tuning ([memo](../validation/phase-2-queueing-diagnosis.md))
+- [x] Selection rule applied: no candidate passed; **C2 recorded as the provisional fallback, not validated** (criterion-1 fraction 0.49 vs 0.46)
+- [ ] Wednesday holdout evaluated exactly once, and the result documented and reviewed: **not run.** No candidate passed Thursday, so this cycle stops with Wednesday untouched (Amendment 2, A2.2)
 - [x] Canonical traffic has no 250 ms pattern; a `--clustered` variant exists for sensitivity runs
 - [x] Completion target sizes resampled from Azure training days; each request records its target sizes
 - [x] Built prompts follow the target distribution for representable targets, judged per request (amended: KS 0.0046 vs critical 0.0131; first, pre-amendment run 0.0060 vs 0.0131; MEASURED at the gateway). Structurally unrepresentable targets kept and flagged (5.6%)
@@ -31,13 +50,21 @@ Revised after the 2026-09-28 verification audit ([ADR-0005](../decisions/0005-tr
 
 Phase 2 stays unmerged until the preregistered Wednesday evaluation has been run exactly once and its result, pass or fail, has been documented and reviewed. A pass supports the preregistered out-of-sample claim. A failure limits the claim; it isn't grounds for changing the test after seeing the result.
 
+*Note (2026-09-29): this validation cycle ended without a Wednesday run (Amendment 2). The gate can't be met by this cycle. It can only be met by a future cycle whose candidate passes its pre-Wednesday gate. Whether Phase 2 waits for that cycle or merges with the burstiness model explicitly marked unvalidated is an open decision for the owner.*
+
+## CI note: reconciliation false alarm (2026-09-29)
+
+`test_end_to_end.py::test_replay_is_valid_and_reconciles` failed on GitHub Actions (client p99 64.8 ms vs gateway p99 90.8 ms, tolerance 25 ms). The measurements were correct. The per-request invariant (client TTFT ≥ gateway TTFT) held for every request in local reproductions, including under injected process stalls. The failure came from comparing a bucket-interpolated histogram p99 with an exact-sample p99 at n = 37, where p99 is set by the one or two slowest requests. It's a reconciliation-design error that CI scheduling stalls trigger.
+
+The fix checks what per-request nesting actually implies (count dominance at shared bucket bounds, with no tolerance), and the end-to-end test now asserts the invariant directly. The rule change is recorded in [ADR-0006](../decisions/0006-reconciliation-check.md) as **Proposed**, pending approval.
+
 ## Deferred
 
 The results schema originally planned for this phase needs its own decisions (file format, how before/after runs are grouped). Those come next, before Phase 3.
 
 ## Verification
 
-`make check` (111 tests) and `make traffic-check` (in-sample only):
+`make check` (119 tests) and `make traffic-check` (in-sample only):
 
 ```
 envelope: PASS
@@ -51,4 +78,4 @@ burstiness C1: sigma = 0.4407 * rate^-0.3231 within 3.2-82.83 rps (AZURE-DERIVED
   60-120 rps at  70.75: max |diff| 0.0062  no tolerance (pending O2)
 ```
 
-Thursday validation: `analysis/results/validation-validation.json`. Prompt fidelity: `validation-prompt-fidelity-amended.json` (amended) and `validation-prompt-fidelity.json` (first run, kept). Sensitivity: `sensitivity.json`.
+Thursday validation: `analysis/results/validation-validation.json` (criterion 3 clarified: `validation-validation-criterion3-clarified.json`). Queueing diagnosis: `analysis/results/diagnosis-queueing/`. Prompt fidelity: `validation-prompt-fidelity-amended.json` (amended) and `validation-prompt-fidelity.json` (first run, kept). Sensitivity: `sensitivity.json`.

@@ -2,7 +2,8 @@
 
 - **Date:** 2026-09-29
 - **Status:** Diagnostic memo. A proposal for review, not a decision.
-- **Data:** training days (Fri–Tue) and Thursday only. **Wednesday was not accessed.**
+- **Data:** training days (Fri–Tue) and Thursday only. **No Wednesday timestamp or statistic was computed** (see H for exactly what the loader touches).
+- **Coverage:** training-day runs cover C1 and Poisson only. C2 was run on Thursday only.
 - **Scope:** diagnosis only. Nothing here tunes C1 or C2, defines a new candidate, changes a threshold or searches parameters ([Amendment 2](phase-2-preregistration.md#amendment-2-2026-09-29-after-thursday-validation), A2.4).
 - **Reproduce:** `uv run python analysis/diagnose_queueing.py` (about 15 minutes), then `uv run --with matplotlib python analysis/plot_diagnosis.py`. Output: `analysis/results/diagnosis-queueing/`.
 
@@ -10,21 +11,21 @@
 
 - **OBSERVED:** a measured difference.
 - **ASSOCIATION:** a correlation across hours.
-- **MECHANISM:** an explanation supported by a controlled surrogate experiment. The experiments transform one property of an arrival stream while holding others fixed. They support "this property is sufficient to move the queue tail". They don't prove it's the only cause.
-- **HYPOTHESIS:** untested.
+- **MECHANISM:** supported by a controlled surrogate experiment. Each experiment swaps or scrambles one *aspect* of an arrival stream (its per-second count distribution, or its time order beyond a block size) while keeping the rest. A positive result shows that aspect is sufficient to move the queue tail. It doesn't prove the aspect is the only cause, and it doesn't isolate which feature *within* that aspect matters.
+- **HYPOTHESIS:** untested, or supported only by theory.
 
 ## Summary
 
-C1 and C2 match Azure's **second-order** statistics: the variance of counts over 1–30 s windows, and the autocorrelation after the first second. That's exactly what they were fitted to. They overestimate queue tails because of two **higher-order** properties that the fitted curve doesn't constrain:
+C1 and C2 match Azure's count variance over 1–30 s windows within about 7%. That's the second-order property they were fitted to. Their autocorrelation is similar but not identical in shape: higher at 5 s, lower at 1 s and (on Thursday) at 20 s. Surrogate experiments show that two aspects of the model's traffic are each **sufficient** to raise queue tails, and the fitted curve constrains neither:
 
-1. **The 5–10 s rate distribution is too right-skewed** (a consequence of the log-normal link).
-2. **High-rate states persist too long** at 2–5 s lags, while low-rate states persist correctly.
+1. **Its per-second count distribution** (MECHANISM, E1b). The observed difference is a more right-skewed, heavier-tailed 5–10 s rate distribution (OBSERVED). This is consistent with, but not shown to be caused by, the log-normal link (HYPOTHESIS).
+2. **Its time structure at 5–30 s** (MECHANISM, E1a and E2). One observed difference at these scales is that high-rate states persist longer than Azure's at 2–5 s, while low-rate states match (OBSERVED). That this *specific* asymmetry is what matters is a HYPOTHESIS: the experiments scramble all time structure, not just high-state persistence. For C2, the time-order effect is smaller (E1a: 1.13× vs C1's 1.37× at s 1.0, ρ 0.8).
 
-Queue tails at high utilisation are driven by exactly these features: how far and for how long the rate goes above capacity. Sub-second structure, estimator bias and each hour's own burstiness level were each tested and ruled out as causes. **The overshoot also appears on the training days**, so it's structural, not a Thursday artefact.
+Sub-second placement was tested and has no effect (E0). The estimator reads the model's σ correctly at Thursday's rates. Each hour's own σ mismatch shows no association with the error (a null result on 24 hours, not proof of no effect). **For C1, the overshoot also appears on the training days**, so it isn't a Thursday artefact. C2 wasn't run on training days.
 
 ## A. Strongest observed differences
 
-Medians over hours. "Model" is C1 on the same trend and seed scheme as the validation; C2 is within a few percent. Training has 119 hours, Thursday 24.
+Medians over hours. "Model" is C1 on the same trend and seed scheme as the validation. On Thursday, C2's arrival statistics are within a few percent of C1's, but its p99 ratios differ by up to about 11% (for example 1.64 vs 1.47 at s 1.0, ρ 0.6). Training has 119 hours (C1 and Poisson only), Thursday 24.
 
 | Statistic | Azure (training) | C1 (training) | Azure (Thursday) | C1 (Thursday) | What it shows |
 |---|---|---|---|---|---|
@@ -39,7 +40,7 @@ Medians over hours. "Model" is C1 on the same trend and seed scheme as the valid
 | Autocorrelation at lag 1 s / 5 s | 0.36 / 0.16 | 0.30 / **0.20** | 0.39 / 0.21 | 0.35 / 0.22 | Different shape: Azure decays faster at 1–5 s |
 | Autocorrelation at lag 20 s | 0.046 | 0.041 | 0.083 | **0.042** | Azure keeps more at 20 s (Thursday) |
 | Fano factor 1 / 10 / 30 s | 1.53 / 4.70 / 7.28 | 1.48 / 4.58 / 7.36 | 1.57 / 5.23 / 9.20 | 1.60 / 5.42 / 8.90 | **Matches** (the fitted property) |
-| Fano factor 0.25 s | 1.04 | **1.12** | 1.09 | **1.16** | Model has extra sub-second variance… |
+| Fano factor 0.25 s | 1.04 | **1.12** | 1.08 | **1.16** | Model has extra sub-second variance… |
 | Gap coefficient of variation | 1.03 | 1.04 | 1.02 | 1.03 | …but gaps look alike |
 
 **OBSERVED, by condition** (Thursday validation cells, 20 seeds; [figure 1](../../analysis/results/diagnosis-queueing/fig1-queue-error-by-condition.png)):
@@ -84,19 +85,19 @@ The same pattern holds at 0.2 s, ρ 0.8: 1.46, 1.45, 1.32 and 1.16.
 
 (The unshuffled value uses 3 seeds, so it differs slightly from the 5-seed baseline above.) Most of the overshoot builds up from structure at **5–30 s**, the scale of the persistence difference. The 1 s value is what the count distribution alone contributes.
 
-**Ruled out** (OBSERVED, or tested by experiment):
+**Not supported as explanations:**
 
 - **Sub-second structure and the 250 ms pattern.** E0 changes p99 by 0–4% for Azure and C1. The model's extra variance at 0.25 s is real but doesn't affect these queue tails.
 - **Estimator bias.** On C1 traffic at each Thursday hour's trend, the estimator reads σ within −2.3% to +3.1% of the true value (median 1.00). The 7% bias found earlier was on constant-rate synthetic traffic at 10 rps, and doesn't carry over to these rates.
-- **Each hour's own burstiness level.** Model σ ÷ the hour's estimated Azure σ has a median of 1.01 (range 0.86–1.21). It isn't associated with the queue error (Spearman −0.07 to +0.34, all permutation p ≥ 0.11).
+- **Each hour's own burstiness level (null result, not ruled out).** Model σ ÷ the hour's estimated Azure σ has a median of 1.01 (range 0.85–1.20). It isn't associated with the queue error (Spearman −0.07 to +0.34, all permutation p ≥ 0.11, n = 24 hours, or 15 in one condition). This feature uses C1's σ(λ) for both candidates.
 
 ## C. Differences that plausibly explain the overshoot
 
-- **MECHANISM (E1b, E2 at 1 s): a right-skewed rate distribution.** With `exp(sX − s²/2)`, a symmetric Gaussian X becomes a right-skewed multiplier. When the variance is fixed at Azure's, the model puts more mass in large upward excursions and less in moderate ones. At 80% utilisation the queue only grows when the rate exceeds 1.25× the trend, so a heavier upper tail means more and deeper overloads. Giving Azure's time ordering the model's count distribution raises Azure's p99 to 1.11–1.23× (all four conditions).
-- **MECHANISM (E1a, E2 at 5–30 s): high-rate states persist too long.** One OU process with τ ≈ 9 s decays more slowly at 2–5 s lags than Azure does, and faster at 20 s lags (Thursday). The shape is two-timescale-like, which the Phase 2 audit had already found fits the curves better. Upward excursions, which the log link also amplifies, last longer and accumulate more backlog. Keeping only the model's ordering and giving it Azure's count distribution still leaves 1.03–1.37×, and 1.32–1.37× at 80% utilisation.
+- **MECHANISM (E1b, E2 at 1 s): the per-second count distribution.** OBSERVED: the model's 5–10 s rate distribution is more right-skewed and heavier-tailed. HYPOTHESIS for why: with `exp(sX − s²/2)`, a symmetric Gaussian X becomes a right-skewed multiplier, so when the variance is fixed at Azure's, the model puts more mass in large upward excursions. E1b swaps the whole distribution, so skew, kurtosis and upper quantiles move together. At 80% utilisation the queue only grows when the rate exceeds 1.25× the trend, so a heavier upper tail means more and deeper overloads. Giving Azure's time ordering the model's count distribution raises Azure's p99 to 1.11–1.23× (all four conditions).
+- **MECHANISM (E1a, E2 at 5–30 s): time structure at 5–30 s.** OBSERVED at those scales: one OU process with τ ≈ 9 s decays more slowly at 2–5 s lags than Azure does, and faster at 20 s lags (Thursday), and C1's top-5% states persist longer than Azure's while its bottom-5% states match. HYPOTHESIS: that the high-state persistence is the part that matters. The shape is two-timescale-like, which the Phase 2 audit had already found fits the curves better. Longer upward excursions would accumulate more backlog. Keeping only the model's ordering and giving it Azure's count distribution still leaves 1.03–1.37×, and 1.32–1.37× at 80% utilisation.
 - **ASSOCIATION:** across Thursday hours, the model/Azure ratio of mean run length above +2 SD correlates with the p99 error: Spearman +0.36 to +0.45 in 6 of 8 candidate × condition combinations, permutation p 0.03–0.08. This is exploratory: about 10 features × 8 combinations were examined, so it doesn't survive a multiple-comparison correction. No other feature reached |ρ| 0.35.
-- **Why the fit didn't catch this (OBSERVED):** the fitted statistic, CV²(W) for W = 1–60 s, is a function of the autocovariance only (second order). The Fano factors from 1 to 30 s agree within about 5%. Skewness, kurtosis and level-dependent persistence don't enter the fit at all.
-- **Why it's worst at 1.0 s and 80% (MECHANISM, via the Poisson comparison):** Poisson's p99 falls to 0.18–0.21× Azure there, so rate modulation sets the queue tail. With many servers (c = ⌈λs/ρ⌉), the queue behaves like a fluid queue driven by rate excursions, so any excursion error is amplified.
+- **Why the fit didn't catch this (OBSERVED):** the fitted statistic, CV²(W) for W = 1–60 s, is a function of the autocovariance only (second order). The Fano factors from 1 to 30 s agree within about 7% (they diverge at 60 s on Thursday: 10.5 vs 12.5). Skewness, kurtosis and level-dependent persistence don't enter the fit at all.
+- **Why it's worst at 1.0 s and 80% (HYPOTHESIS; the Poisson comparison is OBSERVED):** Poisson's p99 falls to 0.18–0.21× Azure there, which indicates that rate modulation sets the queue tail. With many servers (c = ⌈λs/ρ⌉), the queue behaves like a fluid queue driven by rate excursions, so any excursion error is amplified.
 
 ## D. Still hypotheses
 
@@ -138,4 +139,4 @@ Any of these adds claims that need their own labels: AZURE-DERIVED for fitted co
 
 ## H. Wednesday
 
-Wednesday was not accessed by anything in this memo. `analysis/common.py` drops Wednesday's rows by date before parsing, and every script here loads only `training` or `validation`. The local cache holds only `training.npz`, `training_hours.npy` and `validation.npz`. The next development cycle can also leave Wednesday untouched. The protocol in G uses only the six other days until its gate is passed, and `validate.py --holdout` refuses without a non-provisional pass.
+No Wednesday timestamp, token count or statistic was computed for this memo. Every script here calls `load_split` only with `training` or `validation`, and `load_split("holdout")` raises without `allow_holdout`. To be exact about what the loader touches: when it builds a cache, it hashes the whole raw file (the SHA-256 check) and reads each line as text to drop other days by date prefix. So Wednesday's bytes pass through the hash and the prefix filter, but no Wednesday field is parsed. This run used existing caches. The local cache holds only `training.npz`, `training_hours.npy` and `validation.npz`. The next development cycle can also leave Wednesday untouched. The protocol in G uses only the six other days until its gate is passed, and `validate.py --holdout` refuses without a non-provisional pass.

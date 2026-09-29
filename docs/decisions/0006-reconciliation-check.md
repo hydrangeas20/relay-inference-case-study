@@ -8,7 +8,7 @@
 
 ADR-0003 §3 says an outer layer (client ⊃ gateway ⊃ server) must never be faster than an inner one "beyond the inner histogram's bucket width". `reconcile.py` implemented that by comparing p50, p95 and p99 of each pair, with the inner bucket width as the tolerance.
 
-GitHub Actions failed `test_end_to_end.py::test_replay_is_valid_and_reconciles` with client p99 64.8 ms and gateway p99 90.8 ms against a 25 ms tolerance. Diagnosis (details in the Phase 2 page's CI note):
+GitHub Actions failed `test_end_to_end.py::test_replay_is_valid_and_reconciles` with client p99 64.8 ms and gateway p99 90.8 ms against a 25 ms tolerance. Diagnosis (summary in the [Phase 2 page's CI note](../phases/phase-2-traffic-model.md#ci-note-reconciliation-false-alarm-2026-09-29); the reproductions were run outside the repo and aren't committed):
 
 - **Measurement is correct.** The gateway's interval (request parsed → first upstream content line, before forwarding) lies strictly inside the client's (task start → first content line received), on the same monotonic clock. Across 3,330 requests matched by request ID, under idle, CPU-contended and stall-injected conditions, the client's TTFT was never below the gateway's (smallest gap +1.10 ms).
 - **The comparison is wrong.** Comparing quantile to quantile compares two different estimators:

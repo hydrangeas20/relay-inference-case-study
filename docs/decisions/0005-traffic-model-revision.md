@@ -4,7 +4,7 @@
 - **Date:** 2026-09-28
 - **Decided by:** hydrangeas20
 - **Amends:** [ADR-0004](0004-traffic-model.md)
-- **Validation:** [Phase 2 preregistration](../validation/phase-2-preregistration.md)
+- **Validation:** [Phase 2 preregistration](../validation/phase-2-preregistration.md) (Amendments 1 and 2). **Outcome:** no candidate passed Thursday; the cycle is closed with Wednesday untouched; see the [queueing diagnosis](../validation/phase-2-queueing-diagnosis.md).
 
 A verification audit of the Phase 2 traffic model (2026-09-28) found that several claims were stronger than the evidence, and that the burstiness model didn't generalise across request rates. This ADR records the decisions that followed. How the revised model is validated is fixed separately, in the preregistration.
 
