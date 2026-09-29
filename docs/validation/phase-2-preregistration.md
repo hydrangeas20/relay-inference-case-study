@@ -189,7 +189,7 @@ The clustered variant is compared with **raw** Thursday timestamps descriptively
 
 Results are reported in full and work stops. Wednesday runs **exactly once, only after explicit written authorisation**, with the selected candidate and every procedure exactly as written here. A failure is recorded, and it limits Phase 2's claims. There's no tuning, threshold change, model change or rerun against Wednesday (ADR-0005, D9). Any later revision is a new validation cycle, and must state that this Azure week no longer contains an unused holdout.
 
-**Merge gate:** Phase 2 stays unmerged until the preregistered Wednesday evaluation has been run exactly once and its result, pass or fail, has been documented and reviewed.
+**Merge gate:** Phase 2 stays unmerged until the preregistered Wednesday evaluation has been run exactly once and its result, pass or fail, has been documented and reviewed. *(Superseded for Cycle 1 by Amendment 2 and the [Cycle 1 closure](#cycle-1-closure-2026-09-29) below; kept here as originally written.)*
 
 ---
 
@@ -321,3 +321,25 @@ Under the clarified rule, 15 cells change from "doesn't beat Poisson" to "beats 
 - Further analysis of this failure is **diagnostic**: it uses training days and Thursday only, and it doesn't tune C1 or C2, create a new candidate, change thresholds or search parameters.
 - A revised model is a **new validation cycle** with its own preregistration. Thursday has now been used to reveal this failure, so a new cycle has to either justify reusing Thursday as its validation split or define a new one. It must also state which data informed the revision.
 - Wednesday stays untouched until a future cycle's candidate passes that cycle's pre-Wednesday gate.
+
+---
+
+## Cycle 1 closure (2026-09-29)
+
+- **Decided by:** hydrangeas20, 2026-09-29
+- **Nature:** a record of the outcome and the owner's decisions after Amendment 2. It changes no threshold, candidate, parameter or result.
+
+**Cycle 1 is closed as a FAILED VALIDATION cycle.**
+
+- Training fit: **completed** (C1 and C2, Fri–Tue).
+- Thursday validation: **completed**.
+- Prompt fidelity: **passed** (representable targets, per-request matched-mixture KS).
+- Queue-tail acceptance: **failed** (both candidates fail criteria 1 and 2).
+- Candidates validated: **none**. C2 was the selection rule's fallback only.
+- Wednesday: **not accessed**. No Wednesday timestamp or statistic has been computed.
+- Burstiness model: **UNVALIDATED**.
+- Phase 2 infrastructure may merge. **No traffic-model validation claim may be made.**
+
+**Merge gate.** The §12 gate ("stays unmerged until the preregistered Wednesday evaluation has been run exactly once…") is **superseded for Cycle 1 by Amendment 2**, which stops the cycle without a Wednesday run. As written, the gate can't be met by a cycle that never reaches Wednesday, so it no longer governs merging Phase 2. It stays in §12 as the historical record. The replacement condition: Phase 2 may merge as infrastructure (generator, trace format, identity, prompt sizing, measurement and reconciliation, and the analysis and validation tooling). Every document and result must state that the burstiness model is unvalidated. No claim that synthetic traffic reproduces Azure's queueing behaviour may be made.
+
+**Next cycle.** A revised model is Cycle 2, with its own preregistration. The research direction and the proposed protocol are recorded in the [queueing diagnosis](phase-2-queueing-diagnosis.md), sections E–G. Wednesday is untouched and remains the final lockbox for Cycle 2.

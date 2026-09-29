@@ -1,6 +1,6 @@
 # ADR-0006: How the three TTFT layers are reconciled
 
-- **Status:** Proposed (awaiting hydrangeas20's approval). The code on branch `phase-2-traffic-model` already implements it; if it's rejected, that commit is reverted.
+- **Status:** Accepted (approved by hydrangeas20, 2026-09-29). Implemented in `da57184`.
 - **Date:** 2026-09-29
 - **Amends:** [ADR-0003](0003-phase-1-foundation.md) §3, the rule only. Measuring at three layers and reconciling them is unchanged.
 
@@ -24,7 +24,7 @@ GitHub Actions failed `test_end_to_end.py::test_replay_is_valid_and_reconciles` 
 2. **Match requests by ID.** This is the exact check. The gateway would have to export per-request timings: a new interface, and new data to store and scrape.
 3. **Stochastic dominance at shared bucket bounds.** Per-request nesting implies count(outer ≤ b) ≤ count(inner ≤ b) at every bucket bound b both layers share. This holds exactly, needs no tolerance, works at any sample size, and still holds when the inner layer sees extra traffic. The client's exact samples are counted at the inner histogram's bounds.
 
-## Decision (proposed)
+## Decision
 
 Option 3. Quantiles are still reported for reading, but aren't compared. The end-to-end test also states the invariant directly: it records the gateway's TTFT values in-process and asserts that the k-th fastest client TTFT is never below the k-th fastest gateway TTFT.
 

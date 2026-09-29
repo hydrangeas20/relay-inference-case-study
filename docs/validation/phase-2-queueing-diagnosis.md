@@ -1,7 +1,7 @@
 # Phase 2: why C1 and C2 fail the queueing test
 
 - **Date:** 2026-09-29
-- **Status:** Diagnostic memo. A proposal for review, not a decision.
+- **Status:** Diagnostic memo for Cycle 1 (closed as a failed validation cycle). Sections E–G record the owner's chosen direction for Cycle 2 (2026-09-29). Nothing in them is implemented.
 - **Data:** training days (Fri–Tue) and Thursday only. **No Wednesday timestamp or statistic was computed** (see H for exactly what the loader touches).
 - **Coverage:** training-day runs cover C1 and Poisson only. C2 was run on Thursday only.
 - **Scope:** diagnosis only. Nothing here tunes C1 or C2, defines a new candidate, changes a threshold or searches parameters ([Amendment 2](phase-2-preregistration.md#amendment-2-2026-09-29-after-thursday-validation), A2.4).
@@ -107,12 +107,22 @@ The same pattern holds at 0.2 s, ρ 0.8: 1.46, 1.45, 1.32 and 1.16.
 - **The low-rate retry/duplicate signal** (identical context sizes in sub-millisecond pairs at 3–10 rps) **is irrelevant to these queue tails.** E0 suggests sub-second structure doesn't matter here, but the duplicates themselves weren't isolated.
 - **The 60–120 rps overshoot on training (1.73×, 14 hours) and the 3–10 rps overshoot on Thursday (1.94×, 4 hours) are noise.** Too few hours to tell.
 
-## E. Possible revised model classes (proposals, not implemented)
+## E. Revised model classes and the chosen direction (not implemented)
 
-1. **Two-timescale Gaussian modulation with a lighter-tailed link.** X = a fast OU plus a slow OU (τ of roughly 1–3 s and 20–60 s). The multiplier uses a link less convex than `exp`, for example a softplus or a truncated linear `max(ε, 1 + σY)`, or a skew parameter fitted to the 5–10 s rate distribution.
-2. **The same process as today, calibrated on higher-order targets as well.** Keep a parametric Cox process, but fit it on training data to the 1–60 s variance curve **plus** the 5–10 s rate quantiles (or skewness) **plus** tail persistence at 2–10 s.
-3. **Markov-modulated Poisson process (2–4 rate states).** State dwell times directly model how long bursts last. Asymmetric up and down behaviour and bounded upward excursions come naturally.
-4. **Non-parametric residual bootstrap.** Resample Azure's detrended relative-rate paths from training, in blocks of 60–120 s drawn from the matching rate band, and apply them to Relay's envelope.
+Chosen by the owner on 2026-09-29:
+
+| Role | Model class | What it's for |
+|---|---|---|
+| **Primary** | **Two-timescale modulation with a lighter-tailed link.** X = a fast OU plus a slow OU (τ of roughly 1–3 s and 20–60 s). The multiplier uses a link less convex than `exp`, for example a softplus or a truncated linear `max(ε, 1 + σY)`, or a skew parameter fitted to the 5–10 s rate distribution | The Cycle 2 candidate |
+| **Secondary** | **Markov-modulated Poisson process (2–4 rate states).** State dwell times model how long bursts last; asymmetric up/down behaviour and bounded upward excursions come naturally | A structurally different second candidate |
+| **Comparator** | **Block bootstrap of Azure residuals.** Detrended relative-rate paths resampled from development days, in 60–120 s blocks from the matching rate band, applied to Relay's envelope | A reference: how well can *Azure's own* residual structure do? Not a Relay model outside Azure's rate range |
+| **Salvage experiment** | **The existing process, fitted to additional higher-order targets:** the 1–60 s variance curve plus 5–10 s rate quantiles or skewness plus tail persistence at 2–10 s | Tests whether the current model class can be rescued. Expected limit: one timescale |
+
+**Why two-timescale with a lighter-tailed link is primary.** The Cycle 1 diagnosis found discrepancies in **both**:
+- the marginal / right-tail count shape (E1b), and
+- temporal persistence at 5–30 s (E1a, E2).
+
+The next model should let those two properties be controlled **separately**. In this class, the link function and its skew control the marginal shape, and the two OU timescales and their variance split control the persistence structure. In the current model, one σ and one τ set both through the `exp` link. The MMPP also separates them, through state rates and dwell times, but it's harder to fit and scale. The bootstrap reproduces both by construction but can't be controlled or extrapolated. The salvage experiment keeps one timescale, so it can't separate them.
 
 ## F. Tradeoffs
 
@@ -125,18 +135,24 @@ The same pattern holds at 0.2 s, ρ 0.8: 1.46, 1.45, 1.32 and 1.16.
 
 Any of these adds claims that need their own labels: AZURE-DERIVED for fitted components, and PROJECTED outside the observed range.
 
-## G. Proposed fresh validation protocol
+## G. Proposed Cycle 2 protocol
 
-1. **New preregistration first**, committed before any revised candidate is fitted. It would name at most two candidates, the fitting targets, and every threshold.
-2. **Data.** Thursday has now been used heavily for diagnosis, so it can't serve as a clean validation day again. Proposed:
-   - **Development and validation:** leave-one-day-out cross-validation over the six non-Wednesday days (Fri, Sat, Sun, Mon, Tue, Thu). Each fold refits the candidate without the held-out day and runs the §6 band checks and the §7 queueing test on it.
-   - **Pass rule:** a candidate passes validation only if it meets the unchanged thresholds, aggregated over the weekday folds (Fri, Mon, Tue, Thu), with the rule stated in the preregistration.
-   - **Final test:** Wednesday stays the single held-out day, evaluated once.
-   - **Disclosure:** the preregistration must say that all six days informed this diagnosis, so cross-validation isn't pristine for choosing the model class. Wednesday is the only clean test.
-3. **Thresholds are unchanged:** p95/p99 ratio 0.67–1.5 in ≥ 80% of cells, no cell outside 0.5–2.0, and beating Poisson in ≥ 80% of informative cells under the clarified criterion 3. No retuning to make a candidate pass.
-4. **Preregistered diagnostics** (reported, not gating): 10 s rate skewness and quantiles, top/bottom-5% persistence at 1–20 s, and the E0/E1 surrogates. A candidate that passes the queueing test while missing these gets flagged.
-5. **Gate** (Amendment 2, A2.2): Wednesday runs once, only if a candidate passes validation.
+1. **Data roles.** Thursday is **no longer untouched validation data**. It informed this diagnosis, so it's treated as **development data**.
+   - **Development data:** Fri, Sat, Sun, Mon, Tue and Thu. Fitting, model-class exploration and internal checks use only these days.
+   - **Internal validation:** blocked, leave-one-day-out evaluation within the development population. Each fold refits the candidate without the held-out day, and runs the band checks and the queueing test on it. This is **internal validation only**. It is **not** fresh out-of-sample validation, because every development day has informed the diagnosis and the choice of model class, and it must never be described as out-of-sample.
+   - **Final lockbox:** Wednesday, untouched, evaluated **exactly once**.
+2. **Before Wednesday, all of the following are frozen and committed:**
+   - the model class
+   - its parameters, fitted on development data
+   - the acceptance criteria
+   - the implementation, including a recorded `generator_sha256`
+   - the Cycle 2 preregistration, committed before the Wednesday run and after the freeze
+3. **Acceptance thresholds are unchanged** from Cycle 1: p95/p99 ratio 0.67–1.5 in ≥ 80% of cells, no cell outside 0.5–2.0, and beating Poisson in ≥ 80% of informative cells under the clarified criterion 3 (Amendment 2, A2.3). Band tolerances are recomputed by the Cycle 1 method on the development days, and frozen in the preregistration.
+4. **Gate to Wednesday.** Only a candidate that passes internal validation, aggregated over the weekday folds (Fri, Mon, Tue, Thu) by a rule stated in the preregistration, is eligible. If none passes, Cycle 2 stops and Wednesday stays untouched. This replaces the Thursday-based check in `validate.py --holdout` for Cycle 2; the replacement is implemented and frozen before the preregistration.
+5. **If Wednesday fails,** the failure is recorded. There's no tuning and no rerun of Wednesday in the same cycle. A later cycle would have no untouched day left in this Azure week, and would have to say so.
+6. **Preregistered diagnostics** (reported, not gating): 10 s rate skewness and quantiles, top/bottom-5% persistence at 1–20 s, and the E0/E1 surrogates. A candidate that passes the queueing test while missing these gets flagged.
+7. **The comparator and the salvage experiment** are run on development data only, as references. Neither goes to Wednesday unless the preregistration names it as a candidate.
 
 ## H. Wednesday
 
-No Wednesday timestamp, token count or statistic was computed for this memo. Every script here calls `load_split` only with `training` or `validation`, and `load_split("holdout")` raises without `allow_holdout`. To be exact about what the loader touches: when it builds a cache, it hashes the whole raw file (the SHA-256 check) and reads each line as text to drop other days by date prefix. So Wednesday's bytes pass through the hash and the prefix filter, but no Wednesday field is parsed. This run used existing caches. The local cache holds only `training.npz`, `training_hours.npy` and `validation.npz`. The next development cycle can also leave Wednesday untouched. The protocol in G uses only the six other days until its gate is passed, and `validate.py --holdout` refuses without a non-provisional pass.
+No Wednesday timestamp, token count or statistic was computed for this memo. Every script here calls `load_split` only with `training` or `validation`, and `load_split("holdout")` raises without `allow_holdout`. To be exact about what the loader touches: when it builds a cache, it hashes the whole raw file (the SHA-256 check) and reads each line as text to drop other days by date prefix. So Wednesday's bytes pass through the hash and the prefix filter, but no Wednesday field is parsed. This run used existing caches. The local cache holds only `training.npz`, `training_hours.npy` and `validation.npz`. Cycle 2 can also leave Wednesday untouched until the freeze: the protocol in G uses only the six development days until its gate is passed, and `validate.py --holdout` currently refuses without a non-provisional pass.

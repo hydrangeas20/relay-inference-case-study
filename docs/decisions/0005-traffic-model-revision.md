@@ -74,4 +74,6 @@ The failure is recorded. There's no tuning, threshold change, model change or re
 
 ## Merge gate
 
+*Original gate, kept as written. **Superseded for Cycle 1** by preregistration Amendment 2 and the [Cycle 1 closure](../validation/phase-2-preregistration.md#cycle-1-closure-2026-09-29): Cycle 1 ended as a failed validation without a Wednesday run. Phase 2 may merge as infrastructure, with the burstiness model marked unvalidated and no traffic-model validation claim.*
+
 Phase 2 stays unmerged until the preregistered Wednesday evaluation has been run exactly once and its result, pass or fail, has been documented and reviewed. A pass supports the preregistered out-of-sample claim. A failure limits the claim; it isn't grounds for changing the test after seeing the result.

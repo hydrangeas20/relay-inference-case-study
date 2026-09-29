@@ -37,7 +37,7 @@ width_h = 2.5                   # ASSUMPTION
 [burstiness]
 reference = "traffic/reference/azure_code_burstiness.json"   # AZURE fits, training days
 clustering_reference = "traffic/reference/azure_code_clustering.json"   # AZURE, clustered variant
-candidate = "C1"                # PROVISIONAL until Thursday selection (preregistration §11)
+candidate = "C1"                # Cycle-1 default; burstiness model remains UNVALIDATED after Thursday validation (preregistration Amendment 2)
 
 # Nightly repo indexing (RLY-7). Jobs are enqueued in a batch window.
 [indexing]
