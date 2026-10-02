@@ -35,7 +35,7 @@ Decisions: [ADR-0004](../decisions/0004-traffic-model.md).
   - **comparator:** a block bootstrap of Azure residuals
   - **salvage experiment:** the existing process fitted to additional higher-order targets
 
-  Cycle 2 treats Thursday as development data and keeps Wednesday as the untouched final lockbox. Nothing has been implemented.
+  Cycle 2 treats Thursday as development data and keeps Wednesday as the untouched final lockbox. The [Cycle 2 pre-candidate preregistration](../validation/phase-2-cycle-2-preregistration.md) (2026-10-02) fixes the definitions and decision rules. No candidate has been fitted.
 
 ## Acceptance criteria
 
