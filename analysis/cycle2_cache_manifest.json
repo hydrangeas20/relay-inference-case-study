@@ -1,0 +1,20 @@
+{
+ "purpose": "Cycle 2 development data: the only data Cycle 2 may read. Recorded 2026-10-02 from the existing caches, without opening the raw Azure file.",
+ "built_from_raw_sha256": "71de5c55cbc35f8f1ed0b6b7806b4cd1e9764b0058469725a6aac98023a1448f",
+ "built_by": "analysis/common.py load_split (Cycle 1, 2026-09-28): Wednesday rows dropped by date prefix before parsing",
+ "files": {
+  "training.npz": {
+   "sha256": "1f0e15daa6b8bbbe0c2a1b2f8afbd92067fc684bca22157e3f80060947b92362",
+   "bytes": 88430428,
+   "days": ["2024-05-10", "2024-05-11", "2024-05-12", "2024-05-13", "2024-05-14"]
+  },
+  "validation.npz": {
+   "sha256": "47ea7ddf5691f42dda662cc1bbee5e75149fbec7c39ac065d9610a2069a4fde7",
+   "bytes": 25640526,
+   "days": ["2024-05-16"]
+  }
+ },
+ "not_used": {
+  "training_hours.npy": "4d8f1ec8023d188e61f93227ade0911be99a57ef6c40590e0b233d4361f7f4a5 (Cycle 1 audit intermediate; not read by Cycle 2)"
+ }
+}

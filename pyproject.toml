@@ -51,7 +51,7 @@ select = ["E", "F", "I", "B", "UP", "SIM", "ASYNC"]
 "analysis/*" = ["E501"]
 
 [tool.ruff.lint.isort]
-known-local-folder = ["common", "validation_config", "fakes"]
+known-local-folder = ["common", "validation_config", "fakes", "cycle2_data", "cycle2_config", "criterion_audit"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
