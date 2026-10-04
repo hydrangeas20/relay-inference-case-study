@@ -37,7 +37,7 @@ Decisions: [ADR-0004](../decisions/0004-traffic-model.md).
   - **comparator:** a block bootstrap of Azure residuals
   - **salvage experiment:** the existing process fitted to additional higher-order targets
 
-  Cycle 2 treats Thursday as development data and keeps Wednesday as the untouched final lockbox. The [Cycle 2 pre-candidate preregistration](../validation/phase-2-cycle-2-preregistration.md) (2026-10-02) fixes the definitions and decision rules. Its candidate-independent [criterion audit](../validation/phase-2-cycle-2-criterion-audit.md) found that the per-cell queue criteria can't be met even by a perfect model. Cycle 2 is stopped pending review of a proposed aggregated criterion. No candidate has been fitted.
+  Cycle 2 treats Thursday as development data and keeps Wednesday as the untouched final lockbox. The [Cycle 2 pre-candidate preregistration](../validation/phase-2-cycle-2-preregistration.md) (2026-10-02) fixes the definitions and decision rules. Its candidate-independent [criterion audit](../validation/phase-2-cycle-2-criterion-audit.md) found that the per-cell queue criteria can't be met even by a perfect model. A predeclared 200-replicate audit then recommends an aggregated criterion with bound 1.40×, which is still proposed and not adopted. Its stated resolution limit: the test can't exclude p95/p99 biases below about 1.3×. No candidate has been fitted.
 
 ## Acceptance criteria
 
