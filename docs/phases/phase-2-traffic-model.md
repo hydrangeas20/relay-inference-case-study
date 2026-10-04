@@ -6,6 +6,8 @@ Decisions: [ADR-0004](../decisions/0004-traffic-model.md).
 
 ## Status (2026-09-29): Cycle 1 closed as a FAILED VALIDATION cycle
 
+*Note (2026-10-03): Cycle 1's per-cell queue criteria 1 and 2 were later found to be uncalibrated to hourly p99 sampling variability, so their failures don't, on their own, show misspecification. The aggregate mismatch and the surrogate findings stand. See the [methodological note](../validation/phase-2-preregistration.md#methodological-note-on-criteria-1-and-2-2026-10-03). Cycle 1 remains failed.*
+
 **The burstiness model is UNVALIDATED.** Cycle 1 ended with no candidate passing. It was stopped by [preregistration Amendment 2](../validation/phase-2-preregistration.md#amendment-2-2026-09-29-after-thursday-validation) and closed by the [Cycle 1 closure](../validation/phase-2-preregistration.md#cycle-1-closure-2026-09-29).
 
 - Training fit: **completed** (C1 and C2, Fri–Tue).

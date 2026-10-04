@@ -343,3 +343,23 @@ Under the clarified rule, 15 cells change from "doesn't beat Poisson" to "beats 
 **Merge gate.** The §12 gate ("stays unmerged until the preregistered Wednesday evaluation has been run exactly once…") is **superseded for Cycle 1 by Amendment 2**, which stops the cycle without a Wednesday run. As written, the gate can't be met by a cycle that never reaches Wednesday, so it no longer governs merging Phase 2. It stays in §12 as the historical record. The replacement condition: Phase 2 may merge as infrastructure (generator, trace format, identity, prompt sizing, measurement and reconciliation, and the analysis and validation tooling). Every document and result must state that the burstiness model is unvalidated. No claim that synthetic traffic reproduces Azure's queueing behaviour may be made.
 
 **Next cycle.** A revised model is Cycle 2, with its own preregistration. The research direction and the proposed protocol are recorded in the [queueing diagnosis](phase-2-queueing-diagnosis.md), sections E–G. Wednesday is untouched and remains the final lockbox for Cycle 2.
+
+---
+
+## Methodological note on criteria 1 and 2 (2026-10-03)
+
+- **Added by:** hydrangeas20's instruction, 2026-10-03
+- **Nature:** a dated note. Every Cycle 1 result, verdict and amendment above is preserved unchanged. **Cycle 1 remains a failed validation cycle; it isn't relabelled as passing.**
+
+**What was found later.** A candidate-independent audit during Cycle 2, carried out before any Cycle 2 candidate was fitted ([criterion audit](phase-2-cycle-2-criterion-audit.md)), found that queue criteria 1 and 2 (§7) were **not calibrated to the finite-sample variability of hourly p95/p99 estimates.**
+- When the "model" is the true process itself (a perfect model), a single hour's p99 varies by roughly 0.5–1.8× around the truth at 80% utilisation.
+- So a perfect model meets criterion 1 (≥ 80% of cells in 0.67–1.5×) and criterion 2 (no cell outside 0.5–2.0×) in essentially no fold: 0 of 50 replicates, for two different truth processes.
+- Criterion 3 was not affected.
+
+**Consequence for interpretation.** C1's and C2's Thursday failures on criteria 1 and 2 **should not, on their own, be read as evidence of model misspecification.** A correctly specified model would also have failed those criteria with high probability.
+
+**What is unchanged:**
+- The **aggregate mismatch.** Across hours, C1's median p99 was about 1.3× Azure's on training days and 1.2–1.5× by cell on Thursday. The null's median ratio is about 1.00.
+- The **surrogate diagnostic findings** (the per-second count distribution and the 5–30 s time structure are each sufficient to raise queue tails).
+
+These rest on aggregate comparisons and controlled experiments, not on criteria 1 and 2, and remain the evidence that the Cycle 1 candidates misrepresent queue tails ([queueing diagnosis](phase-2-queueing-diagnosis.md)).
