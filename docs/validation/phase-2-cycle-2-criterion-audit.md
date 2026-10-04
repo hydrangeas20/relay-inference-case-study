@@ -111,3 +111,27 @@ The proposal replaces Cycle 1 criteria 1 and 2 *for Cycle 2's internal validatio
 3. **N2:** rebuild the bootstrap and keep N2 as a gate, or demote it to report-only?
 4. **Is 80% the right standard** for how often a perfect model must pass the internal gate? It's preregistered, but this is the first time it has bound.
 5. **The dated note on Cycle 1's record** (section 2): add it as part of the amendment?
+
+---
+
+## 6. Expanded audit: predeclared design (2026-10-03, committed before it runs)
+
+The owner approved the section 4 revision **in principle, not adopted**, and asked for an expanded, candidate-independent audit. Its design is fixed here and in `cycle2_config.AUDIT_EXPANDED` **before it runs**:
+
+- **Replicates:** R = 200 per truth process (Cycle 1 C1 and the within-band bootstrap). Fresh seed entropy (20261003), so the replicates are independent of the original R = 50 audit. The model medians (20 seeds) are also fresh. Same folds, hours, cells and code path: `criterion_audit.py --expanded`.
+- **Bounds evaluated, and only these:** B ∈ {1.25, 1.30, 1.35, 1.40}. There's no continuous search or optimisation over B.
+- **Fold pass:** all 8 fold-level G within [1/B, B] (C1′), criterion 3 as frozen (clarified), and one-sided near-zero hours ≤ 10% of the fold's cell-metrics.
+- **Rule:** at least 3 of the 4 gating folds pass, and no fold has any G outside [0.5, 2.0] (C2′).
+- **Reported for each B:**
+  - P(rule passes), with a 95% Wilson interval
+  - P(rule passes) without C2′
+  - P(all 4 folds pass)
+  - per-fold pass rates
+  - per-fold failure rates for C1′, criterion 3 and the near-zero cap
+- **Power:** the null model's p95/p99 are multiplied by b ∈ {1.15, 1.25, 1.30, 1.50}. Each bias is applied (i) to every cell and percentile ("global"), and (ii) to one of the 8 cell-and-percentile combinations at a time ("localized"). Rejection probability is 1 − P(rule passes), reported at every B. **No power threshold is set**; the operating characteristics are reported as they are.
+- **Safety bound C2′:** per-fold and family-level (any of 4 folds × 8 G) false-failure probability under the null.
+- **Near-zero cap:** per-fold, any-fold, and two-or-more-folds false-failure probability under the null.
+- **Criterion 3:** per-fold and any-fold failure under the null. If it shows a calibration problem, **stop and report**; don't change it.
+- **Calibration target:** a perfect-model P(rule) of at least 0.80 is necessary, but not sufficient on its own to freeze a bound.
+- **N2 (Azure vs bootstrap)** is report-only. It doesn't determine whether Cycle 2 proceeds.
+- **Implementation:** `analysis/cycle2_operating.py` (tests: `test_criterion_audit.py`; its criterion 3 and G equal the frozen `judge_cell` and G definitions). Applied to the original R = 50 output, it reproduces section 3's rule rates exactly: 0.42 / 0.70 / 0.88 / 0.94 (C1 truth) and 0.62 / 0.86 / 0.94 / 1.00 (bootstrap), at B = 1.25 / 1.30 / 1.35 / 1.40.

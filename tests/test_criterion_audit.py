@@ -82,3 +82,58 @@ def test_a_perfect_fold_passes_and_poisson_like_model_fails() -> None:
     assert good["passed"] and good["catastrophic_cells"] == 0
     bad = audit.fold_verdict(poisson, poisson, ref)
     assert not bad["passed"]
+
+
+def test_vectorised_criterion_3_and_g_match_the_frozen_functions() -> None:
+    """cycle2_operating.evaluate must equal queueing.judge_cell (clarified) and the G definition."""
+    import cycle2_operating as op  # noqa: PLC0415
+
+    from relay.traffic.queueing import judge_cell  # noqa: PLC0415
+
+    rng = np.random.default_rng(7)
+    shape = (2, 6, len(op.CELLS), 2)  # folds, hours, cells, metrics
+
+    def draw(size: tuple[int, ...]) -> np.ndarray:
+        x = rng.lognormal(-1.0, 1.0, size)
+        return np.where(rng.random(size) < 0.2, rng.uniform(0, 0.003, size), x)  # some near zero
+
+    model, poisson, ref = draw(shape), draw(shape), draw((3, *shape))
+    ev = op.evaluate(model, poisson, ref)
+    for r in range(3):
+        for f in range(2):
+            verdicts, logs = [], {}
+            for h in range(6):
+                for i, (s, _rho) in enumerate(op.CELLS):
+                    m = dict(zip(op.METRICS, model[f, h, i], strict=True))
+                    p = dict(zip(op.METRICS, poisson[f, h, i], strict=True))
+                    a = dict(zip(op.METRICS, ref[r, f, h, i], strict=True))
+                    verdicts.append(judge_cell(m, p, a, s, "clarified").beats_poisson)
+                    for j, k in enumerate(op.METRICS):
+                        if m[k] >= 0.01 * s and a[k] >= 0.01 * s:
+                            logs.setdefault((i, j), []).append(np.log(m[k] / a[k]))
+            non_tie = [v for v in verdicts if v is not None]
+            expected_c3 = bool(non_tie) and sum(non_tie) >= 0.8 * len(non_tie)
+            assert bool(ev["criterion_3"][r, f]) == expected_c3
+            assert ev["beats_fraction"][r, f] == pytest.approx(sum(non_tie) / max(1, len(non_tie)))
+            for (i, j), v in logs.items():
+                assert ev["log_g"][r, f, i, j] == pytest.approx(np.mean(v))
+
+
+def test_rule_outcomes_and_wilson() -> None:
+    import cycle2_operating as op  # noqa: PLC0415
+
+    lo, hi = op.wilson(160, 200)
+    assert lo < 0.8 < hi and hi - lo < 0.12
+    log_g = np.zeros((1, 4, len(op.CELLS), 2))
+    log_g[0, 0, 0, 0] = np.log(1.3)  # fold 0 outside 1.25, inside 1.35
+    ev = {
+        "log_g": log_g,
+        "max_abs_log_g": np.abs(log_g).max(axis=(2, 3)),
+        "onesided_fraction": np.zeros((1, 4)),
+        "criterion_3": np.ones((1, 4), dtype=bool),
+    }
+    assert op.rule_outcomes(ev, 1.25)["fold_pass"].sum() == 3
+    assert op.rule_outcomes(ev, 1.25)["rule"][0]  # 3 of 4 still passes
+    ev["log_g"][0, 1, 0, 0] = np.log(2.5)  # a safety violation in another fold
+    ev["max_abs_log_g"] = np.abs(ev["log_g"]).max(axis=(2, 3))
+    assert not op.rule_outcomes(ev, 1.35)["rule"][0]

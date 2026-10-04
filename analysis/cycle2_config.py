@@ -30,6 +30,20 @@ AUDIT_RULE_PASS_MIN = 0.80  # a perfect model must pass the internal rule at lea
 AUDIT_CATASTROPHIC_FALSE_ALARM_MAX = 0.05  # per fold, under the self-consistency null
 BOOTSTRAP_MEAN_BLOCK_S = 120
 
+# Expanded perfect-model audit (owner instruction 2026-10-03; predeclared in
+# docs/validation/phase-2-cycle-2-criterion-audit.md section 5 before it runs).
+# Fresh seed entropy: its replicates are independent of the original R = 50 audit.
+AUDIT_EXPANDED = {
+    "replicates": 200,
+    "seed_entropy": 20261003,
+    "bounds": (1.25, 1.30, 1.35, 1.40),  # the only aggregate equivalence bounds evaluated
+    "biases": (1.15, 1.25, 1.30, 1.50),  # multiplicative, applied to the null model's p95/p99
+    "safety_bounds": (0.5, 2.0),  # proposed C2': no fold-level G outside these
+    "nearzero_cap": 0.10,  # proposed: one-sided near-zero hours <= 10% of a fold's cell-metrics
+    "pass_min": 0.80,  # minimum perfect-model 3-of-4 pass probability (unchanged)
+    "ci": "Wilson score, 95%",
+}
+
 # ---- calibration (section 4) ----------------------------------------------------------
 CALIBRATION_SEEDS_PER_HOUR = 3
 CALIBRATION_MAX_EVALUATIONS = 300

@@ -1,6 +1,7 @@
 """Candidate-independent criterion audit (Cycle 2 preregistration, section 7).
 
-Usage: uv run python analysis/criterion_audit.py
+Usage: uv run python analysis/criterion_audit.py              # original audit (R = 50)
+       uv run python analysis/criterion_audit.py --expanded   # 200-replicate audit
 
 Asks whether the provisional internal pass rule (3 of 4 gating folds pass all three
 frozen queue criteria, and no catastrophic cell) is statistically coherent, before
@@ -17,6 +18,8 @@ Writes analysis/results/cycle2/criterion-audit.json.
 
 from __future__ import annotations
 
+import argparse
+import gzip
 import json
 import math
 import multiprocessing as mp
@@ -37,6 +40,10 @@ import cycle2_config as cfg
 import cycle2_data
 
 OUT = Path("analysis/results/cycle2/criterion-audit.json")
+OUT_EXPANDED = Path("analysis/results/cycle2/criterion-audit-200.json.gz")
+# Set in main() before workers fork, so every worker sees the same values.
+_REPLICATES = cfg.AUDIT_REFERENCE_REPLICATES
+_ENTROPY = cfg.AUDIT_SEED_ENTROPY
 REFERENCE = Path("traffic/reference/azure_code_burstiness.json")
 CELLS = [(s, rho) for s in cfg.SERVICE_TIMES_S for rho in cfg.UTILISATIONS]
 PROCESS_CODES = {"poisson": 1, "cycle1_C1": 2, "bootstrap": 3}
@@ -126,7 +133,7 @@ def rule_passes(folds: list[dict[str, Any]]) -> bool:
 
 def _rng(process: str, fold: int, hour: int, role: str, rep: int) -> np.random.Generator:
     key = (PROCESS_CODES[process], fold, hour, ROLE_CODES.get(role, 0), rep)
-    return np.random.default_rng(np.random.SeedSequence(cfg.AUDIT_SEED_ENTROPY, spawn_key=key))
+    return np.random.default_rng(np.random.SeedSequence(_ENTROPY, spawn_key=key))
 
 
 def _metrics(times: np.ndarray, rate: float) -> list[dict[str, float]]:
@@ -207,7 +214,7 @@ def run_fold(fold_index: int) -> dict[str, Any]:
             model = _median([_metrics(gen(_rng(name, fold_index, h, "model", i)), rate)
                              for i in range(cfg.SEEDS_PER_CELL)])  # fmt: skip
             refs = [_metrics(gen(_rng(name, fold_index, h, "reference", r)), rate)
-                    for r in range(cfg.AUDIT_REFERENCE_REPLICATES)]  # fmt: skip
+                    for r in range(_REPLICATES)]  # fmt: skip
             record[name] = {"model": model, "references": refs}
         record["bootstrap_superposed_fraction"] = float(np.mean(superposed))
         hours.append(record)
@@ -224,6 +231,7 @@ def _flatten(hours: list[dict[str, Any]], getter: Any) -> list[dict[str, float]]
 
 def summarise(folds: list[dict[str, Any]]) -> dict[str, Any]:
     out: dict[str, Any] = {}
+    reps_n = len(folds[0]["hours"][0]["cycle1_C1"]["references"])
     for name in cfg.AUDIT_TRUTH_PROCESSES:
         per_fold: list[list[dict[str, Any]]] = []
         for f in folds:
@@ -231,10 +239,10 @@ def summarise(folds: list[dict[str, Any]]) -> dict[str, Any]:
             model = _flatten(hours, lambda h, n=name: h[n]["model"])
             poisson = _flatten(hours, lambda h: h["poisson"])
             reps = [fold_verdict(model, poisson, _flatten(hours, lambda h, n=name, r=r: h[n]["references"][r]))
-                    for r in range(cfg.AUDIT_REFERENCE_REPLICATES)]  # fmt: skip
+                    for r in range(reps_n)]  # fmt: skip
             per_fold.append(reps)
         rule = [rule_passes([per_fold[k][r] for k in range(len(folds))])
-                for r in range(cfg.AUDIT_REFERENCE_REPLICATES)]  # fmt: skip
+                for r in range(reps_n)]  # fmt: skip
         out[f"N1_{name}"] = {
             "P_rule": float(np.mean(rule)),
             "folds": {
@@ -279,21 +287,38 @@ def summarise(folds: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def main() -> None:
+    global _REPLICATES, _ENTROPY
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--expanded", action="store_true",
+                        help="the predeclared 200-replicate audit (cycle2_config.AUDIT_EXPANDED)")  # fmt: skip
+    args = parser.parse_args()
+    out = OUT
+    if args.expanded:
+        _REPLICATES = int(cfg.AUDIT_EXPANDED["replicates"])
+        _ENTROPY = int(cfg.AUDIT_EXPANDED["seed_entropy"])
+        out = OUT_EXPANDED
     _setup()
-    ctx = mp.get_context("fork")  # workers inherit the Cycle 2 guard and loaded caches
+    ctx = mp.get_context("fork")  # workers inherit the Cycle 2 guard, caches and settings
     with ctx.Pool(min(2, len(cfg.GATING_FOLDS))) as pool:
         folds = pool.map(run_fold, range(len(cfg.GATING_FOLDS)))
     summary = summarise(folds)
-    OUT.parent.mkdir(parents=True, exist_ok=True)
+    out.parent.mkdir(parents=True, exist_ok=True)
     record = {
         "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
-        "preregistration": "docs/validation/phase-2-cycle-2-preregistration.md section 7",
+        "preregistration": "docs/validation/phase-2-cycle-2-preregistration.md section 7"
+        + (" and criterion-audit doc section 5 (expanded audit)" if args.expanded else ""),
+        "replicates": _REPLICATES,
+        "seed_entropy": _ENTROPY,
         "caches": json.loads(cycle2_data.MANIFEST.read_text())["files"],
         "wednesday_accessed": False,
         "summary": summary,
         "folds": folds,
     }
-    OUT.write_text(json.dumps(record, default=float) + "\n")
+    text = json.dumps(record, default=float) + "\n"
+    if out.suffix == ".gz":
+        out.write_bytes(gzip.compress(text.encode(), mtime=0))
+    else:
+        out.write_text(text)
     print(json.dumps(summary, indent=1, default=float))
 
 
