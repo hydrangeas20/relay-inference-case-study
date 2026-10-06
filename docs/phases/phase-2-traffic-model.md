@@ -1,6 +1,6 @@
 # Phase 2: Traffic model
 
-**Goal:** traces that behave like Relay's real traffic: a realistic daily shape, realistic burstiness and realistic request sizes, at a scale one GPU or the simulator can run.
+**Goal:** traces that behave like Relay's real traffic: a realistic daily shape, realistic burstiness and realistic request sizes, at a scale one GPU or the simulator can run. *(This is the goal, not a result: the burstiness model is **unvalidated**; see Status.)*
 
 Decisions: [ADR-0004](../decisions/0004-traffic-model.md).
 
@@ -37,7 +37,7 @@ Decisions: [ADR-0004](../decisions/0004-traffic-model.md).
   - **comparator:** a block bootstrap of Azure residuals
   - **salvage experiment:** the existing process fitted to additional higher-order targets
 
-  Cycle 2 treats Thursday as development data and keeps Wednesday as the untouched final lockbox. The [Cycle 2 pre-candidate preregistration](../validation/phase-2-cycle-2-preregistration.md) (2026-10-02) fixes the definitions and decision rules. Its candidate-independent [criterion audit](../validation/phase-2-cycle-2-criterion-audit.md) found that the per-cell queue criteria can't be met even by a perfect model. A predeclared 200-replicate audit then recommends an aggregated criterion with bound 1.40×, which is still proposed and not adopted. Its stated resolution limit: the test can't exclude p95/p99 biases below about 1.3×. No candidate has been fitted.
+  Cycle 2 treats Thursday as development data and keeps Wednesday as the untouched final lockbox. The [Cycle 2 pre-candidate preregistration](../validation/phase-2-cycle-2-preregistration.md) (2026-10-02) fixes the definitions and decision rules. Its candidate-independent [criterion audit](../validation/phase-2-cycle-2-criterion-audit.md) found that the per-cell queue criteria can't be met even by a perfect model. A predeclared 200-replicate audit selected an aggregated criterion with bound 1.40×. It was **frozen on 2026-10-05** as [Cycle 2 Amendment 1](../validation/phase-2-cycle-2-preregistration.md#amendment-1-2026-10-05-final-queue-validation-rule-prospective) (`analysis/cycle2_validation.py`, freeze record `analysis/cycle2_validation_freeze.json`). Its resolution limit is binding: the validator can't exclude p95/p99 biases below about 1.3×, and doesn't establish ±10–15% fidelity. A pass may only be described as "no queue-behaviour discrepancy detected at the resolution supported by the preregistered procedure", never as matching Azure. No Cycle 2 candidate has been fitted.
 
 ## Acceptance criteria
 

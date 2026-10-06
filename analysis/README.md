@@ -1,4 +1,4 @@
-# Analysis: from Azure's raw trace to validated parameters
+# Analysis: from Azure's raw trace to fitted parameters, and how they're tested
 
 Everything the traffic model takes from Azure's data is produced here, reproducibly, from the SHA-256-verified raw trace. The raw trace (~690 MB) isn't committed.
 
@@ -36,6 +36,7 @@ Burstiness analyses use **de-jittered** timestamps (each redrawn uniformly withi
 | Sensitivity (preregistered, descriptive) | `sensitivity.py` | selected candidate | `results/sensitivity.json` | Yes |
 | Criterion 3 clarified (Amendment 2) | recomputed from stored cells | `results/validation-validation.json` | `results/validation-validation-criterion3-clarified.json` | Yes |
 | Queueing-failure diagnosis (Amendment 2, A2.4) | `diagnose_queueing.py` | training + validation splits (never holdout) | `results/diagnosis-queueing/diagnosis.json`; memo in `docs/validation/phase-2-queueing-diagnosis.md` | Yes |
+| Cycle 2 frozen queue-validation rule (Amendment 1) | `cycle2_validation.py` | candidate and Azure queue metrics per gating fold | verdict plus the measurement-resolution statement; pinned by `cycle2_validation_freeze.json` | Yes |
 | Diagnosis figures | `plot_diagnosis.py`, run with `uv run --with matplotlib` (matplotlib isn't a project dependency) | `diagnosis.json` | `results/diagnosis-queueing/fig*.png` | Yes |
 
 The one estimator used everywhere is `relay.traffic.stats.rate_cv2`. `validation_config.py` holds the frozen preregistration values; `validate.py` and `sensitivity.py` refuse to run while preregistration items are unresolved.

@@ -214,7 +214,7 @@ The audit reports per-criterion pass rates, so that any revision targets the cri
 
 - **Decided by:** hydrangeas20, 2026-10-05. Approves the candidate-independent audit recommendation and authorises freezing the Cycle 2 validation system.
 - **Executable form:** `analysis/cycle2_validation.py` (commit `13de097`), tested in `tests/test_cycle2_validation.py`.
-- **Freeze record:** `analysis/cycle2_validation_freeze.json`.
+- **Freeze record:** `analysis/cycle2_validation_freeze.json`, added in **freeze commit `0de6f704e0613cebd7bfad872b5665ae454acc81`**. The file's SHA-256 is `2bda4bf273d57dd487d38e8ff9231ef7a3e9f07f90fb2e26e52f8b58771cab30`. The commit SHA is recorded here, after the fact, because a commit can't contain its own SHA.
 - **Supersedes:** section 6's provisional per-cell queue criteria 1 and 2 and the 0.25–4.0 catastrophic bound. Section 7's decision table has been applied (see the provenance below).
 
 ### A1.1 The frozen rule
