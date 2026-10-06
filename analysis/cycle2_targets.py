@@ -13,8 +13,11 @@ Every other component is pooled as the plain median.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 from collections.abc import Mapping, Sequence
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -150,3 +153,13 @@ def rate_range(rows: Sequence[Mapping[str, Any]]) -> tuple[float, float]:
     """A3.8: min and max mean rate of eligible hours (Cycle 1 §4 definition), unrounded."""
     rates = [float(r["rate"]) for r in rows]
     return min(rates), max(rates)
+
+
+def frozen_dispersion() -> dict[str, Any]:
+    """The Amendment 3 result file, after checking it against the frozen hash."""
+    path = Path(__file__).resolve().parents[1] / cfg.DISPERSION_RESULT
+    data = path.read_bytes()
+    if hashlib.sha256(data).hexdigest() != cfg.DISPERSION_RESULT_SHA256:
+        raise RuntimeError(f"{cfg.DISPERSION_RESULT} does not match its frozen hash")
+    result: dict[str, Any] = json.loads(data)
+    return result

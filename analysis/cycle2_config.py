@@ -14,8 +14,19 @@ TOLERANCE_MIN_DAYS = 3  # a band needs >= 3 days with >= 3 eligible hours (Cycle
 TOLERANCE_MIN_HOURS_PER_DAY = 3
 # FROZEN S1 band tolerances (Cycle 2 preregistration, Amendment 2; computed by
 # analysis/cycle2_tolerances.py from the six development days before any candidate).
-# S2-S4 tolerances are NOT frozen: section 5 doesn't determine them uniquely.
 S1_TOLERANCES = {"3-10": 0.0924, "10-30": 0.0315, "30-60": 0.0128, "60-120": 0.0065}
+# FROZEN by Amendment 3 (computed by analysis/cycle2_dispersion.py from the six
+# development days, after the A3 definitions were committed and before any D code):
+# per band and component, the full-development SD (the LODO fallback, A3.5) and the
+# S2-S4 reporting tolerances (2 x SD, A3.1). Read them with
+# cycle2_targets.frozen_dispersion(), which verifies this hash.
+DISPERSION_RESULT = "analysis/results/cycle2/dispersion-amendment3.json"
+DISPERSION_RESULT_SHA256 = "f44bf4bdcd249e93ff89082ca09fefcc320f0ac473d236249333f40731aed851"
+# Observed rate range of eligible hours over the six development days (A3.8), rps.
+RATE_RANGE_RPS = (3.2, 82.82805555555555)
+# Expected LODO fallbacks (A3.5), from the support rule: held-out day -> bands.
+EXPECTED_LODO_FALLBACKS = {"2024-05-13": ("60-120",), "2024-05-14": ("60-120",),
+                           "2024-05-16": ("60-120",)}  # fmt: skip
 
 # ---- queue test (section 6): unchanged from Cycle 1 ----------------------------------
 SERVICE_TIMES_S = (0.2, 1.0)
@@ -59,6 +70,8 @@ CALIBRATION_STARTS = 8
 SD_FLOOR_FRACTION = 0.25  # sd_days floor: 0.25 x median sd of that statistic across bands
 
 # ---- seed ranges (disjoint by role) ---------------------------------------------------
+# Candidate D does not use these ranges: its seeds are hash-derived namespaces
+# (analysis/cycle2_seeds.py, Amendment 3, A3.6).
 SEED_RANGES = {
     "calibration": (1_000_000, 1_999_999),
     "validation": (2_000_000, 2_999_999),
