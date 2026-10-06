@@ -86,9 +86,9 @@ def test_a_perfect_fold_passes_and_poisson_like_model_fails() -> None:
 
 def test_vectorised_criterion_3_and_g_match_the_frozen_functions() -> None:
     """cycle2_operating.evaluate must equal queueing.judge_cell (clarified) and the G definition."""
-    import cycle2_operating as op  # noqa: PLC0415
-
     from relay.traffic.queueing import judge_cell  # noqa: PLC0415
+
+    import cycle2_operating as op  # noqa: PLC0415
 
     rng = np.random.default_rng(7)
     shape = (2, 6, len(op.CELLS), 2)  # folds, hours, cells, metrics

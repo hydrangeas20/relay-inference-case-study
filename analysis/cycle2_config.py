@@ -18,9 +18,13 @@ SERVICE_TIMES_S = (0.2, 1.0)
 UTILISATIONS = (0.6, 0.8)
 SEEDS_PER_CELL = 20
 CRITERION_3 = "clarified"  # preregistration (Cycle 1) Amendment 2, A2.3
-# Provisional internal pass rule (owner decision Q3), subject to the criterion audit.
-FOLDS_REQUIRED = 3  # of the 4 gating folds, each passing all three criteria
-CATASTROPHIC_BOUNDS = (0.25, 4.0)  # p95/p99 ratio; no fold may contain a cell beyond these
+# FROZEN queue-validation rule: analysis/cycle2_validation.py (Cycle 2 preregistration,
+# Amendment 1). The two values below are the PROVISIONAL rule audited before the freeze;
+# they are kept unchanged only because the historical audit code (criterion_audit.py)
+# reads them. The Cycle 2 validation path does not use CATASTROPHIC_BOUNDS (retired).
+QUEUE_RULE_MODULE = "cycle2_validation"
+FOLDS_REQUIRED = 3  # of the 4 gating folds (same value is frozen in cycle2_validation)
+CATASTROPHIC_BOUNDS = (0.25, 4.0)  # RETIRED by Amendment 1; historical audit only
 
 # ---- criterion audit (section 7) -----------------------------------------------------
 AUDIT_SEED_ENTROPY = 20261002
