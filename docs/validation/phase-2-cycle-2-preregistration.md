@@ -460,6 +460,65 @@ For each fold (gating: Fri, Mon, Tue, Thu; reported: Sat, Sun):
 
 The repository supports the τ bound but not the a and b bounds, so these need the owner's decision. The proposal and its justification are in the addendum below this section, which is committed together with the computed values.
 
+### A3 addendum (2026-10-06): computed values, proposed bounds, starts, one clarification
+
+- **Committed:** after the A3 definitions (`8217fde`), the pre-D infrastructure (`03db1d6`) and the computed values (`6a7602a`). Still before any Candidate D code, fit, simulation or result.
+- **Status:** the computed values below are FROZEN. The bounds are still PROPOSED and NOT FROZEN, so Candidate D can't be fitted yet.
+
+**A. Computed and frozen values** (`analysis/cycle2_dispersion.py`, from the six hash-verified development caches under the cache-only guard; Wednesday not accessed).
+
+- **Result file:** `analysis/results/cycle2/dispersion-amendment3.json`, SHA-256 `f44bf4bdcd249e93ff89082ca09fefcc320f0ac473d236249333f40731aed851`.
+  - The hash is pinned in `cycle2_config.DISPERSION_RESULT_SHA256`.
+  - `cycle2_targets.frozen_dispersion()` refuses a file that doesn't match it.
+- **Full-development SD:** recorded per band and component, for all 37 components (S1 at 6 windows, S2, S3 at W = 10 s and W = 5 s, S4). It's the A3.5 fallback. All four bands meet the support rule over six days:
+
+  | Band (rps) | Qualifying days |
+  |---|---|
+  | 3–10 | all six |
+  | 10–30 | all six |
+  | 30–60 | Fri, Mon, Tue, Thu |
+  | 60–120 | Mon, Tue, Thu |
+
+  The S1 SDs reproduce Amendment 2's `sd_by_window` exactly in every band.
+- **S2–S4 reporting tolerances (A3.1):** 2 × SD, per band and component, 31 per band. They're listed in the result file and are descriptive only.
+- **Rate range (A3.8):** 3.2 to 82.82805555555555 rps (`cycle2_config.RATE_RANGE_RPS`), over 143 eligible hours.
+- **Expected LODO fallbacks (A3.5):** the 60–120 rps band, all 30 target components, in the Mon, Tue and Thu folds only (`cycle2_config.EXPECTED_LODO_FALLBACKS`). This matches A3.5's expectation.
+
+**B. Proposed bounds** (owner to choose or amend; nothing is fitted until one is frozen). Coordinates are θ = (log a, b, log τ). Here a is σ at λ = 1 rps.
+
+- **τ: [0.1, 600] s under both options.** This is supported by the repository: it's the Cycle 1 τ estimator's search grid (`stats.TAU_GRID_S`).
+- **a and b: discretionary.** The Cycle 1 evidence they would need to cover:
+  - all Cycle 1 C1 fits: a 0.43–0.52, b −0.37 to −0.31;
+  - the per-hour σ slope, −0.385.
+
+  Reference points for b: b = 0 is a constant σ; b = −0.5 is Poisson-like 1/√λ scaling.
+
+| Option | log a | b | Implied σ over the observed 3.2–82.8 rps range | Margin around Cycle 1 |
+|---|---|---|---|---|
+| **W (wide)** | [log 0.05, log 5] | [−1.0, 0.5] | about 0.0006 to 45 | a ×/÷ about 10 around 0.43–0.52; b at least 0.63 below and 0.81 above the Cycle 1 range |
+| **N (narrow)** | [log 0.1, log 2] | [−0.75, 0.0] | about 0.004 to 2 | a ×/÷ about 4 around 0.43–0.52; b at least 0.38 below and 0.31 above the Cycle 1 range; excludes a σ that grows with λ |
+
+  - Option W allows σ to increase with rate, against all Cycle 1 evidence. It also allows σ far outside the Cycle 1 range (about 0.10–0.30 over these rates).
+  - Option N is tighter around Cycle 1, but it rules out b > 0 before any D result.
+  - Either option contains the Cycle 1 fit, which is start 8.
+
+**C. The eight starts that each option would freeze** (A3.2 design mapped onto the bounds; (a, b, τ) rounded for display; the code uses exact values):
+
+| Start | Option W | Option N |
+|---|---|---|
+| 1 (centre) | (0.5, −0.25, 7.746) | (0.4472, −0.375, 7.746) |
+| 2 (a low) | (0.07924, −0.25, 7.746) | (0.1349, −0.375, 7.746) |
+| 3 (a high) | (3.155, −0.25, 7.746) | (1.482, −0.375, 7.746) |
+| 4 (b low) | (0.5, −0.85, 7.746) | (0.4472, −0.675, 7.746) |
+| 5 (b high) | (0.5, 0.35, 7.746) | (0.4472, −0.075, 7.746) |
+| 6 (τ low) | (0.5, −0.25, 0.2387) | (0.4472, −0.375, 0.2387) |
+| 7 (τ high) | (0.5, −0.25, 251.4) | (0.4472, −0.375, 251.4) |
+| 8 (Cycle 1 C1) | (0.44065, −0.32314, 9.2389) | same |
+
+**D. Clarification of A3.6 (prospective, before any seed is used).**
+- The calibration fit index also takes `without-band-<label>` (for example `without-band-60-120`) for the A3.9 rate-band holdout refits.
+- The seed test enumerates the calibration seeds of all 11 fits (`all`, six held-out days, four band holdouts), together with every validation seed, and requires all of them to be distinct.
+
 ### A3.11 No post-result rescue
 
 D gets exactly one preregistered fitting and evaluation procedure. Once any D result has been observed, none of these change:
