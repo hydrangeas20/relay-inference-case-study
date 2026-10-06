@@ -287,3 +287,64 @@ The same statement is held verbatim in `cycle2_validation.RESOLUTION_STATEMENT` 
 
 - **Section 5:** the band tolerances (computed from development data before candidate fitting).
 - **Section 10:** which checks gate on Wednesday.
+
+---
+
+## Amendment 2 (2026-10-05): S1 tolerances frozen; pre-fit ambiguities for Candidate D
+
+- **Authorised by:** hydrangeas20, 2026-10-05 (Candidate D stage, Stage 0).
+- **Committed:** before any Candidate D code, fit or result exists.
+- **Status:** **S1 tolerances FROZEN. Candidate D NOT STARTED.** Stage 0 stopped on the ambiguities in A2.2, as instructed: "If the existing preregistration does not uniquely determine how any tolerance should be calculated, STOP and report the ambiguity."
+
+### A2.1 S1 band tolerances (frozen)
+
+**Method.** Section 5, which is Cycle 1 §6.1 as implemented in `analysis/azure_traffic.py` (`tolerances`):
+- For each rate band, use each development day with **≥ 3 eligible hours** in that band.
+- That day's pooled curve is √max(element-wise median over its band hours of CV²(W), 0), for W ∈ {1, 2, 5, 10, 30, 60} s.
+- The tolerance is **2 × the maximum over windows of the across-day SD (ddof = 1)**.
+- A band qualifies only with **≥ 3** such days.
+
+**Implementation check.** `analysis/cycle2_tolerances.py` (commit `5e6b491`; file SHA-256 `deada822…`), applied to the five training days alone, reproduces Cycle 1's recorded tolerances exactly: 0.0985, 0.0321, 0.0146 and 0.0035.
+
+| Band | Eligible hours (Fri, Sat, Sun, Mon, Tue, Thu) | Qualifying days | Qualifies | **Tolerance** |
+|---|---|---|---|---|
+| 3–10 rps | 5, 8, 10, 5, 5, 4 | all six | yes | **0.0924** |
+| 10–30 rps | 9, 15, 14, 8, 8, 10 | all six | yes | **0.0315** |
+| 30–60 rps | 9, 0, 0, 5, 4, 4 | Fri, Mon, Tue, Thu | yes | **0.0128** |
+| 60–120 rps | 1, 0, 0, 6, 7, 6 | Mon, Tue, Thu | **yes, on its own** | **0.0065** |
+
+- **The 60–120 band qualifies on its own.** So **the Cycle 1 merged 30–120 workaround is retired for Cycle 2.** The Cycle 1 method and results are unchanged as history.
+- **Frozen in:** `cycle2_config.S1_TOLERANCES`. Tested in `tests/test_cycle2_tolerances.py`: the values, the support rule, the method on synthetic data, the cache provenance, and local recomputation.
+- **Data:** `analysis/results/cycle2/tolerances-s1.json` (SHA-256 `1a2fb042…`), computed from `training.npz` (`1f0e15da…`) and `validation.npz` (`47ea7ddf…`), cache-only. No Wednesday or raw data.
+- **Role.** The S1 tolerances are used for the S1 band comparisons that section 6 reports during internal validation. They don't gate: the frozen queue rule (Amendment 1) is the gate.
+
+### A2.2 Ambiguities that must be resolved before Candidate D can be fitted
+
+The preregistration doesn't determine each of the following uniquely. None has been resolved by a discretionary choice. **No S2–S4 dispersion has been computed**, so whatever resolution is chosen can't be influenced by those values.
+
+1. **S2–S4 tolerances (section 5: "the same method gives tolerances for S2–S4").** "2 × the maximum over windows" has no unique analogue:
+   - **S3** mixes components on different scales (skewness, excess kurtosis, standardised quantiles), so a maximum across them is dominated by kurtosis.
+   - **S2** (7 lags) and **S4** (top and bottom tail × 5 lags) could take the maximum over lags, over tails, or not at all.
+
+   Candidate readings:
+   - (a) a tolerance per statistic component: 2 × its across-day SD, with no maximum;
+   - (b) 2 × the maximum within same-scale families (S2 over lags; S4 over lags, per tail; S3 per component);
+   - (c) don't define S2–S4 tolerances, and report S2–S4 against 2 × sd_days, the quantity section 9's falsification rules already use.
+
+   These tolerances are reporting-only; section 9 uses 2 × sd_days. But the instruction is to stop rather than choose.
+2. **Optimiser starting points.** Section 4 says "8 preregistered starting points", but none are listed anywhere.
+3. **Optimiser budget and parameterisation:**
+   - whether the 8 start evaluations count within the 300-evaluation budget;
+   - whether Nelder–Mead runs from the best start only, or from several;
+   - the parameter space (for example log a, b, log τ) and any bounds;
+   - the termination tolerances.
+4. **sd_days during leave-one-day-out:**
+   - whether sd_days (and its floor) is fixed from all six days, or recomputed from each fold's five training days;
+   - if recomputed: the 60–120 band has only 2 qualifying days in the Mon, Tue and Thu folds, so how does that band enter the loss? Excluded; the 2-day SD; or the six-day value?
+5. **Calibration seeds:** which 3 seeds per hour in the calibration range (1,000,000–1,999,999), and how they map to hours and folds.
+6. **Validation seeds:** which 20 seeds per cell, for the candidate and for the Poisson control, in the validation range (2,000,000–2,999,999).
+7. **Observed rate range and scenario during fitting and validation.** Is σ(λ)'s observed range the Cycle 1 training range [3.20, 82.83] rps, or recomputed from the six development days? And is the `edge` scenario used when a within-hour trend leaves it, as Cycle 1 §7 and the Cycle 2 audit did?
+8. **S1 pooling with an even number of hours.** Should S1 be the median of √CV² or √ of the median CV², as Cycle 1 pools? These differ only when a band has an even number of hours.
+9. **D's falsification sequence (section 9).** FD1 ("expected to fail F0 or FA2-like checks") is written as an expectation, not as an explicit pre-queue rejection rule, and "FA2-like" isn't defined for D. As written, no rule explicitly rejects D before queue validation; F1 applies only after it. Please confirm that D proceeds to leave-one-day-out queue validation whatever its in-sample S1–S4 fit, with in-sample misfit reported as a diagnostic.
+
+**Next step:** a dated Amendment 3, committed before any D code runs, that resolves items 1–9.

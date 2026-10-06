@@ -12,6 +12,10 @@ REPORTED_FOLDS = ("2024-05-11", "2024-05-12")  # Sat, Sun: reported, not gating
 MIN_ELIGIBLE_RATE = 3.0
 TOLERANCE_MIN_DAYS = 3  # a band needs >= 3 days with >= 3 eligible hours (Cycle 1 rule)
 TOLERANCE_MIN_HOURS_PER_DAY = 3
+# FROZEN S1 band tolerances (Cycle 2 preregistration, Amendment 2; computed by
+# analysis/cycle2_tolerances.py from the six development days before any candidate).
+# S2-S4 tolerances are NOT frozen: section 5 doesn't determine them uniquely.
+S1_TOLERANCES = {"3-10": 0.0924, "10-30": 0.0315, "30-60": 0.0128, "60-120": 0.0065}
 
 # ---- queue test (section 6): unchanged from Cycle 1 ----------------------------------
 SERVICE_TIMES_S = (0.2, 1.0)
