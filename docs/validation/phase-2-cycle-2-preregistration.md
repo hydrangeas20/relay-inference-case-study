@@ -348,3 +348,123 @@ The preregistration doesn't determine each of the following uniquely. None has b
 9. **D's falsification sequence (section 9).** FD1 ("expected to fail F0 or FA2-like checks") is written as an expectation, not as an explicit pre-queue rejection rule, and "FA2-like" isn't defined for D. As written, no rule explicitly rejects D before queue validation; F1 applies only after it. Please confirm that D proceeds to leave-one-day-out queue validation whatever its in-sample S1–S4 fit, with in-sample misfit reported as a diagnostic.
 
 **Next step:** a dated Amendment 3, committed before any D code runs, that resolves items 1–9.
+
+---
+
+## Amendment 3 (2026-10-06): Candidate D procedure, resolving the Amendment 2 ambiguities
+
+- **Decided by:** hydrangeas20, 2026-10-06.
+- **Committed:** before any S2–S4 value, any Candidate D code, and any D fit or result.
+- **Status:** definitions below are FROZEN, **except the numeric parameter bounds (A3.10)**. Those are PROPOSED and await the owner's decision. The start points depend on the bounds (A3.2). Candidate D can't be fitted until A3.10 is frozen.
+
+### A3.1 S2–S4 reporting tolerances (resolves Amendment 2 item 1)
+
+- **One tolerance per statistic component, per band:** 2 × the across-day SD (ddof = 1) of that day's band-pooled value.
+  - It uses days with ≥ 3 eligible hours in the band, and the band must have ≥ 3 such days.
+  - A day's band-pooled value is the element-wise median over the day's eligible hours in that band.
+  - There's no maximum across components, and no floor.
+- **Components:**
+
+  | Statistic | Components |
+  |---|---|
+  | S2 | `acf_{1,2,5,10,20,30,60}` |
+  | S3 | for W = 10 s and W = 5 s: `skew`, `excess_kurtosis`, `zq{0.01,0.05,0.95,0.99,0.999}`. (`m*_sd` is a scale statistic, not part of S3, and is excluded) |
+  | S4 | `persist_{top,bottom}_{1,2,5,10,20}` |
+
+- **These tolerances are descriptive and reporting-only.** They don't alter the frozen queue-validation verdict.
+
+### A3.2 Optimiser starts (resolves item 2)
+
+- **Exactly eight deterministic starts**, in transformed coordinates θ = (log a, b, log τ).
+- **Starts 1–7:** a fixed design in the unit cube, mapped linearly onto the frozen bounds (A3.10):
+  - the centre (½, ½, ½);
+  - six axial points that set one coordinate to 0.1 or 0.9 and leave the others at ½.
+- **Start 8:** the historical Cycle 1 C1 fit, a = 0.4406544452547643, b = −0.32313480634892916, τ = 9.23892541130273 s, taken from `traffic/reference/azure_code_burstiness.json`.
+- **No start is chosen using D's objective.**
+
+### A3.3 Optimiser (resolves item 3)
+
+- **Budget:** 300 objective evaluations **in total**, counting the 8 starts.
+- **Procedure:** evaluate all 8 starts, take the lowest-objective one (ties go to the lower start number), and run Nelder–Mead from it alone.
+- **Implementation:** an in-repository Nelder–Mead (`analysis/cycle2_optimizer.py`; no new dependency):
+  - **Coefficients:** reflection 1, expansion 2, contraction 0.5, shrink 0.5.
+  - **Initial simplex:** the start, plus one vertex per coordinate displaced by 10% of that coordinate's bound width. The displacement is toward the upper bound, or toward the lower bound if the upper bound would be exceeded.
+  - **Bounds:** every trial point is clipped to the bound box.
+  - **Convergence:** stop when (max f − min f over the simplex) ≤ 1e-4 **and** the maximum coordinate spread ≤ 1e-4, or when the 300-evaluation cap is reached.
+- **Result:** the fit is the best finite point among **all** evaluations, starts included. The termination reason is recorded.
+
+### A3.4 Failure and recovery, and D's progression (resolves item 9; supersedes FD1 for D)
+
+- **Invalid evaluations.** An objective evaluation is invalid if it's non-finite, or if generation or the statistics raise an error. It's recorded and counts as +∞. A start at +∞ can't be selected.
+- **Invalid fits.** A fit is **invalid** if all eight starts are +∞, if its best objective is non-finite, or if its parameters lie outside the bounds.
+- **No rescue.** No recovery is attempted: no restarts, perturbations or second runs.
+- **D proceeds through full leave-one-day-out queue validation** unless the procedure itself is invalid:
+  - If the full-development fit is invalid, D is labelled **INVALID PROCEDURE** and stops.
+  - If a fold's fit is invalid, that fold is recorded as **failing** and its queue test isn't run.
+- **Descriptive S1–S4 inadequacy never stops D.** It's reported explicitly, and the frozen queue validator decides D's operational verdict.
+- **FD1's undefined "FA2-like" early rejection doesn't apply to D.**
+- **D's label** is one of **PASS**, **FAIL** or **INVALID PROCEDURE**. There's no pre-queue structural falsification rule for D.
+
+### A3.5 Calibration targets and weights in leave-one-day-out (resolves item 4)
+
+**For fold d, the training days are the six development days without d.** The held-out day influences neither the fold's targets nor its ordinary dispersion.
+- **Target s_obs(b, c):** the band-pooled value over all eligible band-b hours on the training days. For S1, that's √max(median CV², 0) (A3.7).
+- **Weight sd(b, c):** the across-day SD (ddof = 1), over training days with ≥ 3 eligible hours in b.
+- **Fallback:** if fewer than 3 training days qualify for band b, sd(b, c) = the **frozen full-development SD** for (b, c), computed under the same rule over all six days. **Every fallback is recorded in the candidate report.**
+  - From the frozen eligibility counts, the expected fallbacks are the **60–120 rps band** (all its components) in the **Mon, Tue and Thu folds**. No others are expected.
+- **Floor:** 0.25 × the median over the four bands of the (post-fallback) sd for that component, as in section 4.
+- **Loss:** Σ_b Σ_c ((ŝ_sim − s_obs)/sd)², over the 30 target components per band:
+  - S1 at the 6 windows;
+  - S2 at the 7 lags;
+  - S3 at W = 10 s: skewness, excess kurtosis and the 5 standardised quantiles;
+  - S4: top and bottom tails at the 5 lags.
+- **A band with no eligible training hours** is left out of that fold's loss and recorded.
+- **The full-development fit**, used for in-sample reporting and later for the Wednesday model, uses all six days under the same rules.
+
+### A3.6 Seeds (resolves items 5–6)
+
+**Derivation.** seed = the first 8 bytes, big-endian, of SHA-256(`namespace|i1|i2|…`), used as `numpy.random.default_rng(seed)` (`analysis/cycle2_seeds.py`, tested).
+
+**Namespaces:**
+
+| Stream | Namespace | Indices |
+|---|---|---|
+| D calibration | `relay/cycle2/D/calibration/v1` | (fit, day, hour, replicate 0–2), where fit ∈ {`all`, held-out day}. The same seeds are used for every θ within a fit (common random numbers) |
+| D validation | `relay/cycle2/D/validation/v1` | (held-out day, hour, cell 0–3, replicate 0–19) |
+| Poisson-control validation | `relay/cycle2/poisson-control/validation/v1` | (held-out day, hour, cell 0–3, replicate 0–19) |
+
+The streams don't overlap: tests enumerate every planned seed in all three and require them all to be distinct.
+
+### A3.7 S1 pooling (resolves item 8)
+
+The Cycle 1 estimator, exactly: √max(median(CV²), 0). Not the median of √CV².
+
+### A3.8 Rate range and out-of-range behaviour (resolves item 7)
+
+- **Observed range:** the minimum and maximum mean rate of eligible hours over all six development days (the Cycle 1 §4 definition). It's computed and frozen under this amendment.
+- **Inside the range,** σ(λ) = a·λ^b.
+- **Outside it, within an hour's trend:** only σ extrapolates, by the same power law (the frozen `trend` principle), and τ is unchanged. No new structural behaviour is inferred.
+- **Reporting:** every out-of-range evaluation is reported, as the fraction of 0.1 s bins out of range per hour.
+- **Change from precedent:** this replaces the `edge` scenario that Cycle 1 §7 and the Cycle 2 audit used.
+
+### A3.9 Validation procedure for D
+
+For each fold (gating: Fri, Mon, Tue, Thu; reported: Sat, Sun):
+- **Simulation:** each eligible hour of the held-out day is simulated on its own trend (the 600 s moving average of Azure's per-second counts).
+- **Model value per cell:** the median p95/p99 over 20 validation seeds per cell (A3.6). The Poisson control is built the same way from its own namespace.
+- **Servers:** c = ⌈λ_ref·s/ρ⌉, with λ_ref the Azure hour's mean rate.
+- **Verdict:** the gating folds go to the **frozen** `cycle2_validation.validate`, and its resolution statement is returned with the result.
+- **Rate-band holdouts** (reported only): refit on all six days without band b's hours in the loss, and report the S1 error for band b against its frozen S1 tolerance.
+
+### A3.10 Parameter bounds: PROPOSED, NOT FROZEN (stop condition)
+
+The repository supports the τ bound but not the a and b bounds, so these need the owner's decision. The proposal and its justification are in the addendum below this section, which is committed together with the computed values.
+
+### A3.11 No post-result rescue
+
+D gets exactly one preregistered fitting and evaluation procedure. Once any D result has been observed, none of these change:
+- its starts, bounds, loss, weights or seeds
+- its tolerances, optimiser or model structure
+- the validator
+
+No D2 or D3 is created unless separately authorised as a new prospective experiment.
