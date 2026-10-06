@@ -1,6 +1,6 @@
 # Phase 2, Cycle 2: preregistration (pre-candidate skeleton)
 
-- **Version:** 0 (pre-candidate skeleton), 2026-10-02
+- **Version:** 0 (pre-candidate skeleton), 2026-10-02, amended by [Amendment 1](#amendment-1-2026-10-05-final-queue-validation-rule-prospective) (2026-10-05: final queue-validation rule, frozen)
 - **Owner:** hydrangeas20. Design decisions Q1–Q9 approved 2026-10-02.
 - **Frozen values in code:** `analysis/cycle2_config.py`
 - **Statistics implementation:** `relay.traffic.higher_order` (S2–S5) and `relay.traffic.stats` (S1)
@@ -112,6 +112,7 @@ The same method gives tolerances for S2–S4, which are reported as diagnostics 
     - no cell outside 0.5–2.0
     - beats Poisson in ≥ 80% of informative cells, under the clarified criterion 3 (Cycle 1 Amendment 2, A2.3)
 - **Gating folds:** Fri, Mon, Tue, Thu. Sat and Sun are reported only; they have no hours above 30 rps.
+- *Superseded by [Amendment 1](#amendment-1-2026-10-05-final-queue-validation-rule-prospective): the queue criteria below are replaced by the frozen aggregated rule. The text is kept as written.*
 - **Internal pass rule (Q3, provisional; subject to the audit in section 7):**
   - at least **3 of the 4** gating folds each pass all three queue criteria; **and**
   - **no** gating fold contains a catastrophic cell: a p95 or p99 ratio below **0.25** or above **4.0**, or a one-sided near-zero failure where Azure's value is 0.
@@ -206,3 +207,83 @@ The audit reports per-criterion pass rates, so that any revision targets the cri
 **Open before candidate fitting** (to be settled by amendment):
 - Which checks *gate* on Wednesday. Proposed: the queue test, with all three criteria and no catastrophic cell. The S1–S4 band comparisons at frozen tolerances would be reported, and a band failure would limit the descriptive claim.
 - Whether S1 band checks should also gate internally. Under Q3 they're reported only.
+
+---
+
+## Amendment 1 (2026-10-05): final queue-validation rule (prospective)
+
+- **Decided by:** hydrangeas20, 2026-10-05. Approves the candidate-independent audit recommendation and authorises freezing the Cycle 2 validation system.
+- **Executable form:** `analysis/cycle2_validation.py` (commit `13de097`), tested in `tests/test_cycle2_validation.py`.
+- **Freeze record:** `analysis/cycle2_validation_freeze.json`.
+- **Supersedes:** section 6's provisional per-cell queue criteria 1 and 2 and the 0.25–4.0 catastrophic bound. Section 7's decision table has been applied (see the provenance below).
+
+### A1.1 The frozen rule
+
+**For each gating fold (Fri 05-10, Mon 05-13, Tue 05-14, Thu 05-16), using its 24 eligible hours:**
+
+**Inputs.** For each hour, each queue cell (s, ρ) ∈ {0.2, 1.0} s × {0.6, 0.8}, and each percentile (p95, p99), the validator takes three values:
+- the candidate's median over 20 seeds;
+- the Poisson control's median over 20 seeds;
+- Azure's value.
+
+A value is **near zero** if it's below 0.01·s (the frozen Cycle 1 definition).
+
+**The four checks:**
+
+| Check | Definition |
+|---|---|
+| **Aggregate ratio G** | For each of the 8 cell-and-percentile combinations: exp(mean over informative hours of log(candidate / Azure)). An hour is informative if neither value is near zero. G = 1 if no hour is informative |
+| **C1′, equivalence** | Each of the 8 G values satisfies **1/1.40 ≤ G ≤ 1.40** (B = 1.40, inclusive) |
+| **Near-zero cap** | Hours where exactly one of candidate and Azure is near zero make up **≤ 10%** of the fold's hour × cell × percentile values |
+| **Criterion 3** | **Unchanged.** `queueing.judge_cell` with the clarified rule (Cycle 1 Amendment 2, A2.3); the candidate beats the Poisson control in ≥ 80% of non-tie cells, with at least one non-tie cell |
+
+**A fold passes** if C1′, the near-zero cap and criterion 3 all hold.
+
+**Safety, C2′:** a fold violates safety if any of its 8 G lies outside **[0.5, 2.0]** (inclusive bounds).
+
+**Rule:** at least **3 of the 4** gating folds pass, **and** no gating fold violates C2′.
+
+**Not gates:**
+- The Azure-vs-Azure (bootstrap) comparison is **report-only**. It cannot affect candidate acceptance or selection, and the validation code doesn't accept it as an input.
+- Cycle 1's per-cell criteria 1 and 2 are **rejected** for Cycle 2, and the validation code can't reach them.
+
+### A1.2 Provenance (why this rule, and how it was chosen)
+
+1. **Why the original criteria were rejected.** The original per-cell criteria 1 and 2 were rejected because candidate-independent, perfect-model auditing showed they were **miscalibrated**: a model equal to the truth passed the 3-of-4 rule in 0 of 50 replicates ([criterion audit](phase-2-cycle-2-criterion-audit.md), sections 1–2).
+2. **No Cycle 2 candidate had been fitted or evaluated** before this amendment. None has been to this day.
+3. **How B was chosen.** B = 1.40 was selected by the decision rule written down *before* the 200-replicate run (audit doc, section 4): the smallest predeclared bound whose 95% lower limit on the perfect-model pass rate is ≥ 0.80 under both truth processes. The predeclared bounds were {1.25, 1.30, 1.35, 1.40}, with no search outside them.
+   - **B = 1.40 met that rule:** lower limits 0.851 (C1 truth) and 0.811 (bootstrap truth).
+   - **B = 1.35 failed it:** lower limits 0.755 and 0.734, and the bootstrap point estimate (0.795) is below 0.80.
+4. **Candidate results played no role** in selecting any criterion; there are none.
+5. **The other rules were audited separately** under the 200-replicate null (audit doc, section 7):
+   - **Safety bound:** family-level false failure 0.000 and 0.010.
+   - **Near-zero cap:** 0 false failures in 800 folds per truth.
+   - **Criterion 3:** any-fold failure 0.020 and 0.000.
+6. **Azure-vs-Azure stays report-only**, because its bootstrap is biased upward.
+7. **This amendment is prospective for all Cycle 2 candidates** (D1, A1, A2, B2, B3) and binds their internal validation.
+8. **Cycle 1's historical result is unchanged.** It remains a failed validation cycle, subject to the dated methodological note on criteria 1 and 2 already added to the Cycle 1 record.
+9. **The criteria won't change because a candidate fails.** Any later change needs a new dated amendment, justified independently of candidate results, and committed before the run it affects.
+
+### A1.3 Measurement resolution (frozen; binding on every claim)
+
+The validator **does not establish close distributional equality, or queue fidelity to within ±10–15%.** Under the 200-replicate perfect-model audit at B = 1.40:
+
+| Bias | Detection |
+|---|---|
+| About 1.15× | **Generally not detected** (8–13% globally) |
+| About 1.25× | **Limited, inconsistent power** (44–46% globally) |
+| About 1.30× | Detected **71–73%** of the time globally |
+| 1.50× | Detected **essentially always** globally (100%) |
+| 1.50× confined to one cell-and-percentile | Materially lower but still useful power: **63–100%**, depending on the cell |
+
+**Wording for a passing candidate:**
+- **Supported:** "No queue-behaviour discrepancy was detected at the resolution supported by the preregistered validation procedure."
+- **Not allowed:** describing a passing candidate as "matching Azure".
+- **Stronger quantitative wording** must be supported explicitly by the audit.
+
+The same statement is held verbatim in `cycle2_validation.RESOLUTION_STATEMENT` and returned with every validation result.
+
+### A1.4 Still open (unchanged by this amendment)
+
+- **Section 5:** the band tolerances (computed from development data before candidate fitting).
+- **Section 10:** which checks gate on Wednesday.

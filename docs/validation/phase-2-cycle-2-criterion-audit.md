@@ -4,7 +4,7 @@
 - **Status (updated 2026-10-04):**
   - The original audit (R = 50, sections 1–5) gave **STOP**: the per-cell criteria are uncalibrated.
   - The aggregated revision was approved **in principle**. It was then tested by a predeclared expanded audit (R = 200, sections 6–7).
-  - **Recommended bound: B = 1.40** (section 7.7). The revision is **still PROPOSED: not frozen, not adopted.**
+  - **Recommended bound: B = 1.40** (section 7.7). **Adopted and frozen on 2026-10-05** as Cycle 2 preregistration Amendment 1 (`analysis/cycle2_validation.py`, `analysis/cycle2_validation_freeze.json`).
   - No Cycle 2 candidate has been fitted. Wednesday and the raw trace were not accessed.
 - **Order of events:**
   1. `196074a`: preregistration skeleton, which fixed the audit procedure and thresholds
