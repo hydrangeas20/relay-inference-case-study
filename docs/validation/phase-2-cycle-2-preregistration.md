@@ -356,6 +356,7 @@ The preregistration doesn't determine each of the following uniquely. None has b
 - **Decided by:** hydrangeas20, 2026-10-06.
 - **Committed:** before any S2–S4 value, any Candidate D code, and any D fit or result.
 - **Status:** definitions below are FROZEN, **except the numeric parameter bounds (A3.10)**. Those are PROPOSED and await the owner's decision. The start points depend on the bounds (A3.2). Candidate D can't be fitted until A3.10 is frozen.
+- **Update (2026-10-07):** the bounds are now FROZEN as Option W, and with them the eight starts (A3 addendum 2, at the end of this amendment). Fitting D still needs the owner's separate authorisation.
 
 ### A3.1 S2–S4 reporting tolerances (resolves Amendment 2 item 1)
 
@@ -458,12 +459,15 @@ For each fold (gating: Fri, Mon, Tue, Thu; reported: Sat, Sun):
 
 ### A3.10 Parameter bounds: PROPOSED, NOT FROZEN (stop condition)
 
+**Resolved 2026-10-07: Option W frozen (A3 addendum 2).** The text below is kept as the record of the proposal.
+
 The repository supports the τ bound but not the a and b bounds, so these need the owner's decision. The proposal and its justification are in the addendum below this section, which is committed together with the computed values.
 
 ### A3 addendum (2026-10-06): computed values, proposed bounds, starts, one clarification
 
 - **Committed:** after the A3 definitions (`8217fde`), the pre-D infrastructure (`03db1d6`) and the computed values (`6a7602a`). Still before any Candidate D code, fit, simulation or result.
 - **Status:** the computed values below are FROZEN. The bounds are still PROPOSED and NOT FROZEN, so Candidate D can't be fitted yet.
+- **Update (2026-10-07):** Option W was chosen and frozen (A3 addendum 2).
 
 **A. Computed and frozen values** (`analysis/cycle2_dispersion.py`, from the six hash-verified development caches under the cache-only guard; Wednesday not accessed).
 
@@ -527,3 +531,68 @@ D gets exactly one preregistered fitting and evaluation procedure. Once any D re
 - the validator
 
 No D2 or D3 is created unless separately authorised as a new prospective experiment.
+
+### A3 addendum 2 (2026-10-07): parameter domain and starts FROZEN (Option W)
+
+- **Decided by:** hydrangeas20, 2026-10-07.
+- **Committed:** before any Candidate D code, fit, generation, simulation or result.
+- **Status:** FROZEN. This completes A3.10. Every Amendment 3 element is now frozen. Fitting D still needs the owner's separate authorisation.
+
+**Frozen parameter domain (Option W).** σ(λ) = a·λ^b; θ = (log a, b, log τ).
+
+| Parameter | Natural units | θ coordinate | θ bounds (exact) |
+|---|---|---|---|
+| a | [0.05, 5] | log a | [−2.995732273553991, 1.6094379124341003] |
+| b | [−1.0, 0.5] | b | [−1.0, 0.5] |
+| τ | [0.1, 600] s | log τ | [−2.3025850929940455, 6.396929655216146] |
+
+**Rationale (owner).**
+- Candidate D tests whether the original single-timescale lognormal OU family can reproduce the richer Cycle 2 statistics and the operational queue behaviour.
+- Restricting b ≤ 0 (Option N) would exclude an otherwise permitted rate-dependence pattern before the candidate is evaluated.
+
+**Frozen starts.** They are exactly the Option W column of the addendum above, in θ, as `cycle2_optimizer.starts` returns them:
+
+| Start | log a | b | log τ | (a, b, τ) rounded |
+|---|---|---|---|---|
+| 1 centre | −0.6931471805599454 | −0.25 | 2.04717228111105 | (0.5, −0.25, 7.746) |
+| 2 a low | −2.535215254955182 | −0.25 | 2.04717228111105 | (0.07924, −0.25, 7.746) |
+| 3 a high | 1.148920893835291 | −0.25 | 2.04717228111105 | (3.155, −0.25, 7.746) |
+| 4 b low | −0.6931471805599454 | −0.85 | 2.04717228111105 | (0.5, −0.85, 7.746) |
+| 5 b high | −0.6931471805599454 | 0.3500000000000001 | 2.04717228111105 | (0.5, 0.35, 7.746) |
+| 6 τ low | −0.6931471805599454 | −0.25 | −1.4326336181730261 | (0.5, −0.25, 0.2387) |
+| 7 τ high | −0.6931471805599454 | −0.25 | 5.526978180395126 | (0.5, −0.25, 251.4) |
+| 8 Cycle 1 C1 | −0.8194942815382655 | −0.32313480634892916 | 2.223425581412457 | (0.44065, −0.32314, 9.2389) |
+
+**Unchanged.** All of the following stay as frozen earlier in Amendment 3:
+- the 300-evaluation total budget, starts included;
+- the θ parameterisation;
+- the Nelder–Mead implementation and its convergence criteria;
+- the loss and the LODO weighting, fallback and floor;
+- the seed namespaces and derivation;
+- the development rate range, 3.2–82.828 rps.
+
+**Optimiser limitations versus structural inadequacy.** The wide domain and the fixed 300-evaluation budget mean a poor D result can have two different causes:
+- **(i) the optimiser:** it stops at the cap, converges to a local minimum, or ends at a bound;
+- **(ii) the model family:** single-timescale lognormal OU genuinely can't reproduce the statistics.
+
+The D report therefore records, for every fit:
+- the termination reason, and the evaluations used against the cap;
+- the chosen start, and all eight start objectives;
+- the count of invalid evaluations;
+- any coordinate of the best θ within 1% of its bound width of a bound.
+
+Conclusions about structural inadequacy are stated only with these diagnostics alongside. Where (i) can't be ruled out, they're labelled as conditional on the frozen procedure.
+
+None of this changes D's label (A3.4) or permits a rescue (A3.11). The diagnostics inform interpretation only.
+
+**Enforcement.** `analysis/cycle2_config.py` holds:
+- `D_BOUNDS` and `D_THETA_LOWER` / `D_THETA_UPPER`;
+- `D_CYCLE1_START`;
+- `D_STARTS_THETA`.
+
+`tests/test_cycle2_d_domain.py` requires:
+- the bounds to equal Option W;
+- the starts to equal the design mapped onto these bounds, exactly;
+- start 8 to equal the C1 fit recorded in `traffic/reference/azure_code_burstiness.json`;
+- the SHA-256 of `cycle2_optimizer.py`, `cycle2_seeds.py` and `cycle2_targets.py` to be unchanged since `6a7602a` (optimiser and seeds since `03db1d6`);
+- the Amendment 1 freeze record, the Amendment 2 S1 result and the Amendment 3 dispersion result to be unchanged.

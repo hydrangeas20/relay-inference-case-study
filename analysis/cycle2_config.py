@@ -6,6 +6,8 @@ committed before the run it affects.
 
 from __future__ import annotations
 
+import math
+
 # ---- data (section 2) ----------------------------------------------------------------
 GATING_FOLDS = ("2024-05-10", "2024-05-13", "2024-05-14", "2024-05-16")  # Fri, Mon, Tue, Thu
 REPORTED_FOLDS = ("2024-05-11", "2024-05-12")  # Sat, Sun: reported, not gating
@@ -68,6 +70,28 @@ CALIBRATION_SEEDS_PER_HOUR = 3
 CALIBRATION_MAX_EVALUATIONS = 300
 CALIBRATION_STARTS = 8
 SD_FLOOR_FRACTION = 0.25  # sd_days floor: 0.25 x median sd of that statistic across bands
+
+# ---- Candidate D parameter domain and starts (Amendment 3, A3.10 addendum 2) ----------
+# FROZEN 2026-10-07: Option W, chosen by the owner before any D code, fit or result.
+# Natural units: sigma(lambda) = a * lambda**b, tau in seconds. The optimiser works in
+# theta = (log a, b, log tau) (cycle2_optimizer.to_theta).
+D_BOUNDS = {"a": (0.05, 5.0), "b": (-1.0, 0.5), "tau_s": (0.1, 600.0)}
+D_THETA_LOWER = (math.log(0.05), -1.0, math.log(0.1))
+D_THETA_UPPER = (math.log(5.0), 0.5, math.log(600.0))
+# Start 8: the Cycle 1 C1 fit (traffic/reference/azure_code_burstiness.json, candidates.C1).
+D_CYCLE1_START = {"a": 0.4406544452547643, "b": -0.32313480634892916, "tau_s": 9.23892541130273}
+# The eight starts in theta, exactly as cycle2_optimizer.starts(D_THETA_LOWER,
+# D_THETA_UPPER, theta(D_CYCLE1_START)) returns them; tests enforce the equality.
+D_STARTS_THETA = (
+    (-0.6931471805599454, -0.25, 2.04717228111105),  # 1 centre
+    (-2.535215254955182, -0.25, 2.04717228111105),  # 2 a low
+    (1.148920893835291, -0.25, 2.04717228111105),  # 3 a high
+    (-0.6931471805599454, -0.85, 2.04717228111105),  # 4 b low
+    (-0.6931471805599454, 0.3500000000000001, 2.04717228111105),  # 5 b high
+    (-0.6931471805599454, -0.25, -1.4326336181730261),  # 6 tau low
+    (-0.6931471805599454, -0.25, 5.526978180395126),  # 7 tau high
+    (-0.8194942815382655, -0.32313480634892916, 2.223425581412457),  # 8 Cycle 1 C1
+)
 
 # ---- seed ranges (disjoint by role) ---------------------------------------------------
 # Candidate D does not use these ranges: its seeds are hash-derived namespaces
