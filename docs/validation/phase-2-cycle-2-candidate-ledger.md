@@ -196,3 +196,35 @@ None of this changes the label (A3.4): the descriptive misfit is reported, and t
 - Candidates A and B haven't been started, implemented or evaluated. They wait for explicit authorisation.
 - Wednesday is closed. Section 10 lists the conditions for opening it; among them, A3's selection and freeze steps and the owner's explicit written authorisation haven't happened.
 - The next decision is the owner's: section 8 selection, given that A and B haven't been run, and whether to authorise them.
+
+### D.7 Correction (2026-10-08): scope of the model-family statements and the Cycle 1 comparison
+
+- **Requested by:** hydrangeas20, 2026-10-08.
+- **Append-only.** It doesn't edit D.1–D.6.
+- **What doesn't change:** D's fits, results, verdict (PASS) and the frozen validation criteria.
+
+**1. Persistent structural mismatch isn't proof of impossibility.** Three statements above are stronger than the evidence supports:
+- D.3: "A single exponential can't produce both".
+- D.5: "A single OU timescale and a lognormal link can't produce these together at any (a, b, τ)".
+- D.5: "the descriptive inadequacy is attributed to the model family rather than the optimiser".
+
+They are replaced, for interpretation, by this:
+
+> Under the frozen procedure, the same pattern of descriptive mismatch persisted at every fitted point found, in all 11 fits:
+> - S2: lag-1 autocorrelation too low, and too little long-lag autocorrelation above 30 rps;
+> - S3 (10 s): skewness and excess kurtosis too high in every band;
+> - S4: top-tail persistence too high.
+>
+> The fits converged well inside the budget and far from every bound, and agreed with each other. **That's evidence of a persistent structural mismatch under the frozen optimiser.** It is **not** proof that no (a, b, τ) in the domain reproduces the targets.
+
+Why it's not proof:
+- **The search was local.** Nelder–Mead ran from one start per fit. No global search, profile or exhaustive exploration of the domain was done, and none may be added for D (A3.11).
+- **The link is only part of the chain.** The lognormal link ties the multiplier's skewness to σ, as σ(σ² + 3). But S2–S4 are measured on detrended, Poisson-thinned counts aggregated over 1–10 s, not on the multiplier itself. So the link's property doesn't by itself fix the observed statistics.
+- **The diagnosis memo said the same.** It records the link-causes-skew mechanism as a hypothesis, not a demonstrated fact (phase-2-queueing-diagnosis.md, section D).
+
+**2. The retrospective Cycle 1 comparison is exploratory.** The D.4 paragraph "Context, not a candidate result", including "D's pass hinges on the Thursday fold", is **retrospective and exploratory**:
+- It wasn't preregistered.
+- It applies the frozen rule to Cycle 1 C1 outputs produced under different parameters, a different out-of-range scenario (`edge`) and different (audit) seeds.
+- It supports no causal claim about why D passed, and plays no role in any verdict or selection.
+
+Any later reference to it must carry the label **exploratory**.
