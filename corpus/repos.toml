@@ -1,0 +1,101 @@
+# Source code used to build realistic prompts (Phase 1, decision 5B + follow-up B).
+#
+# Every repo is pinned to a full commit SHA so the corpus is reproducible, and
+# carries the SHA-256 of its license file as it was reviewed. `relay-corpus fetch`
+# refuses to build the corpus if the license file at that commit doesn't match.
+#
+# Allowed licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause.
+# Code is fetched locally into data/corpus/ and is not committed to this repo.
+
+[defaults]
+max_files = 30
+min_bytes = 1024
+max_bytes = 40960
+
+[[repo]]
+name = "requests"
+url = "https://github.com/psf/requests"
+commit = "611c6162cbc4ac2020a2f91c7cfa4f3abf9bbb60"
+language = "python"
+extensions = [".py"]
+include_dirs = ["src", "tests"]
+license = "Apache-2.0"
+license_file = "LICENSE"
+license_sha256 = "09e8a9bcec8067104652c168685ab0931e7868f9c8284b66f5ae6edae5f1130b"
+
+[[repo]]
+name = "express"
+url = "https://github.com/expressjs/express"
+commit = "9a34acf03cb818ff3f8bc40e44176e277a25cbb9"
+language = "javascript"
+extensions = [".js"]
+include_dirs = ["lib", "test"]
+license = "MIT"
+license_file = "LICENSE"
+license_sha256 = "95a5762890e5c1c9808921cef095661fc482c5e1f0bba31446ac85595df6237c"
+
+[[repo]]
+name = "gin"
+url = "https://github.com/gin-gonic/gin"
+commit = "1bd0ecf2d3e08da37efa270bb7be20c1eddb0d68"
+language = "go"
+extensions = [".go"]
+include_dirs = ["."]
+license = "MIT"
+license_file = "LICENSE"
+license_sha256 = "b104efb2c7700691650f27034e8541c5ae0ed9af54d884287f19a7467ca2fe7f"
+
+[[repo]]
+name = "axum"
+url = "https://github.com/tokio-rs/axum"
+commit = "bc8d4912435204a4a073cea70355ae0328d263fe"
+language = "rust"
+extensions = [".rs"]
+include_dirs = ["axum/src"]
+license = "MIT"
+license_file = "LICENSE"
+license_sha256 = "008c87afcd2e626eaf564093250bed06dd7efb5732113264bba3dda8f1c556a1"
+
+[[repo]]
+name = "gson"
+url = "https://github.com/google/gson"
+commit = "854c8255b625cf1e13c701a83ea9ccb4caaa576a"
+language = "java"
+extensions = [".java"]
+include_dirs = ["gson/src/main"]
+license = "Apache-2.0"
+license_file = "LICENSE"
+license_sha256 = "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+
+[[repo]]
+name = "zod"
+url = "https://github.com/colinhacks/zod"
+commit = "2bf7b0630d5378033e90bcee82cb32b0fe04628e"
+language = "typescript"
+extensions = [".ts"]
+include_dirs = ["packages"]
+license = "MIT"
+license_file = "LICENSE"
+license_sha256 = "3f1189b28e3866e0d979968d466b78f813f76827cfdca1fbb124cc0a5c8841f8"
+
+[[repo]]
+name = "phoenix"
+url = "https://github.com/phoenixframework/phoenix"
+commit = "429796d9ef753c83c3ce93403371dd02ad6af80b"
+language = "elixir"
+extensions = [".ex"]
+include_dirs = ["lib"]
+license = "MIT"
+license_file = "LICENSE.md"
+license_sha256 = "41a686069f0199ff369d7e5277d5267385cc54d9199f1efc960bacbe2e799255"
+
+[[repo]]
+name = "aeson"
+url = "https://github.com/haskell/aeson"
+commit = "6cf159922074e044c25725f278e288cccc932b5a"
+language = "haskell"
+extensions = [".hs"]
+include_dirs = ["src"]
+license = "BSD-3-Clause"
+license_file = "LICENSE"
+license_sha256 = "21908b8a0927ea16437f482877bdd5579f7320e6493c1da3819a95bf5078a464"

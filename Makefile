@@ -1,15 +1,25 @@
-.PHONY: help setup up down logs check lint format typecheck test clean
+.PHONY: help setup corpus trace up down logs run check lint format typecheck test clean
+
+TRACE ?= traces/smoke.jsonl
 
 help:  ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-10s %s\n", $$1, $$2}'
 
-setup:  ## Install Python dependencies into .venv
+setup:  ## Install Python deps and build the code corpus
 	uv sync --all-extras
+	$(MAKE) corpus
 
-up:  ## Start the local stack (Floci, simulator, Prometheus, Grafana)
-	docker compose up -d
+corpus:  ## Fetch the pinned repos into data/corpus (verifies licenses and hashes)
+	uv run relay-corpus
+
+trace:  ## Regenerate the smoke trace (30 s at 4 rps, seed 1)
+	uv run relay-trace --out traces/smoke.jsonl --duration 30 --rate 4 --seed 1
+
+up:  ## Start the local stack
+	docker compose up -d --build
 	@echo "Floci:      http://localhost:4566"
 	@echo "Simulator:  http://localhost:8000/v1"
+	@echo "Gateway:    http://localhost:8080"
 	@echo "Prometheus: http://localhost:9090"
 	@echo "Grafana:    http://localhost:3000"
 
@@ -18,6 +28,9 @@ down:  ## Stop the local stack
 
 logs:  ## Follow logs from all services
 	docker compose logs -f
+
+run:  ## Replay a trace against the stack: make run TRACE=traces/smoke.jsonl
+	docker compose run --rm loadgen relay-loadgen --trace $(TRACE)
 
 check: lint typecheck test  ## Run lint, type checks and tests
 

@@ -119,15 +119,17 @@ Requires Docker, [uv](https://docs.astral.sh/uv/), and Python 3.11+.
 git clone https://github.com/hydrangeas20/relay-inference-case-study.git
 cd relay-inference-case-study
 
-make setup   # install Python deps into .venv
-make up      # start Floci, the inference simulator, Prometheus, Grafana
-make check   # lint + tests
+make setup   # install Python deps and build the code corpus from pinned repos
+make up      # start Floci, the inference simulator, gateway, worker, Prometheus, Grafana
+make run     # replay traces/smoke.jsonl against the stack; results land in results/
+make check   # lint, type checks and tests
 ```
 
 | Service                                 | URL                                             |
 | --------------------------------------- | ----------------------------------------------- |
 | Floci (AWS endpoint)                    | http://localhost:4566                           |
 | Inference simulator (OpenAI-compatible) | http://localhost:8000/v1                        |
+| Relay gateway                           | http://localhost:8080                           |
 | Prometheus                              | http://localhost:9090                           |
 | Grafana                                 | http://localhost:3000 (anonymous viewer access) |
 

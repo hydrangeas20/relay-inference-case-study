@@ -4,13 +4,14 @@
 
 | Component | Tech | Responsibility |
 |---|---|---|
-| Load generator | Python, `asyncio` + `httpx` | Generates open-loop traffic from Relay's traffic model; records per-request timings |
-| Gateway | Python, FastAPI | Relay's interactive API (completions, agent chat); forwards to the inference endpoint; exposes metrics |
+| Load generator | Python, `asyncio` + `httpx` | Replays pre-generated trace files open-loop; records per-request timings; self-checks and reconciles against server metrics |
+| Gateway | Python, FastAPI | Relay's interactive API (`/v1/complete`, `/v1/agent`); builds prompts from Relay's templates and streams responses through; exposes metrics |
 | Worker | Python, `boto3` | Pulls indexing jobs from SQS, calls the embedding endpoint, writes to DynamoDB |
 | Inference: real | vLLM on a rented GPU | Ground-truth performance and all quality evals |
 | Inference: simulated | llm-d-inference-sim | OpenAI-compatible stand-in, calibrated to real measurements, for scale tests |
 | Customer AWS | Floci | Emulated S3, SQS, DynamoDB at `localhost:4566` |
 | Metrics | Prometheus + Grafana | Live operational dashboard |
+| Code corpus | git + pinned commits | Real source code from permissively licensed repos, used to build prompts (`corpus/`) |
 | Reporting | Python + Plotly | Generates the case study site from `results/` |
 
 ## Key design decisions
