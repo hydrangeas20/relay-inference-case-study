@@ -33,9 +33,18 @@ jobs:
       - name: Replay the smoke trace (completion, agent and indexing traffic)
         run: docker compose run --rm loadgen relay-loadgen --trace traces/smoke.jsonl
       - name: Worker drained the indexing jobs
+        # Fails unless every indexing job in the smoke trace was processed successfully.
         run: |
-          sleep 15
+          expected=$(tail -n +2 traces/smoke.jsonl | grep -c '"workload":"indexing"')
+          echo "indexing jobs in trace: $expected"
+          for i in $(seq 1 30); do
+            done_ok=$(curl -s http://localhost:9101/metrics \
+              | awk '/^relay_worker_jobs_total\{status="ok"\}/ {print int($2)}')
+            [ "${done_ok:-0}" -ge "$expected" ] && break
+            sleep 2
+          done
           curl -s http://localhost:9101/metrics | grep -E '^relay_worker_' | tee worker-metrics.txt
+          [ "${done_ok:-0}" -ge "$expected" ] || { echo "worker processed ${done_ok:-0}/$expected"; exit 1; }
       - name: Stack state and logs
         if: always()
         run: |

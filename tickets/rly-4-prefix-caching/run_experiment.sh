@@ -69,7 +69,10 @@ for rep in $(seq "$REP_START" $((REP_START + REPS - 1))); do
     GATEWAY_PID=$!
     wait_for "http://127.0.0.1:$GATEWAY_PORT/healthz" 60
 
-    printf '%s\n' "${server_cmd[*]}" >"$dir/server/$tag.cmd"
+    # Record the command with the binary's name, not its local absolute path; the
+    # build itself is identified by /props build_info in each run manifest.
+    cmd_line="${server_cmd[*]}"
+    printf '%s\n' "${cmd_line//$LLAMA_SERVER/$(basename "$LLAMA_SERVER")}" >"$dir/server/$tag.cmd"
     curl -s "http://127.0.0.1:$SERVER_PORT/metrics" >"$dir/server/$tag.metrics.before.txt"
     echo "== $name $tag (template=$template, $cacheflag)"
     INFERENCE_BACKEND=cpu GATEWAY_URL="http://127.0.0.1:$GATEWAY_PORT" \
