@@ -5,6 +5,10 @@
 #   LLAMA_SERVER=/path/to/llama-server MODEL=models/relay-rly4-qwen2-synthetic.gguf \
 #     tickets/rly-4-prefix-caching/run_experiment.sh [REPS]
 #
+# Optional: ONLY="name1 name2" runs a subset of configurations, and REP_START=N numbers
+# the repetitions from N. Used to add repetitions after a run failed its self-check: the
+# failed run stays on disk and in the report as invalid; nothing is deleted or replaced.
+#
 # Each run starts a fresh server, so no run inherits another run's KV cache. The server
 # is pinned to CPU 0 with one thread; gateway and load generator share CPU 1, so the
 # client side can't steal compute from prefill (and the self-check would catch it if it
@@ -12,6 +16,8 @@
 set -euo pipefail
 
 REPS="${1:-3}"
+ONLY="${ONLY:-}"
+REP_START="${REP_START:-1}"
 LLAMA_SERVER="${LLAMA_SERVER:?set LLAMA_SERVER to the llama-server binary}"
 MODEL="${MODEL:-models/relay-rly4-qwen2-synthetic.gguf}"
 OUT="${OUT:-results/rly-4}"
@@ -43,9 +49,10 @@ stop_all() {
 trap stop_all EXIT
 
 mkdir -p "$OUT"
-for rep in $(seq 1 "$REPS"); do
+for rep in $(seq "$REP_START" $((REP_START + REPS - 1))); do
   for cfg in "${CONFIGS[@]}"; do
     IFS='|' read -r name trace template cacheflag <<<"$cfg"
+    if [ -n "$ONLY" ] && [[ " $ONLY " != *" $name "* ]]; then continue; fi
     dir="$OUT/$name"; mkdir -p "$dir/server"
     tag="rep${rep}"
     server_cmd=(taskset -c "$SERVER_CPU" "$LLAMA_SERVER" -m "$MODEL" --host 127.0.0.1
