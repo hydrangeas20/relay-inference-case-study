@@ -19,6 +19,7 @@ dist/
 
 # Generated traces can be hundreds of MB; only the smoke trace is committed.
 traces/*.jsonl
+!traces/rly4-*.jsonl
 !traces/smoke.jsonl
 
 # Raw per-request traces can be large; summaries in results/ are committed.
