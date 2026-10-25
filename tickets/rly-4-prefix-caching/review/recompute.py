@@ -133,31 +133,60 @@ def per_request_median(runs: list[dict[str, Any]], key: str = "ttft") -> dict[st
     return {i: statistics.median(r[key][i] for r in runs) for i in ids}
 
 
-def paired(base: list[dict[str, Any]], treat: list[dict[str, Any]]) -> dict[str, float]:
+def _ratios(base: list[dict[str, Any]], treat: list[dict[str, Any]]) -> dict[str, float]:
     b, t = per_request_median(base), per_request_median(treat)
-    ratios = {i: t[i] / b[i] for i in b}
+    return {i: t[i] / b[i] for i in b}
+
+
+def paired(
+    base: list[dict[str, Any]], treat: list[dict[str, Any]], n_boot: int = 2_000
+) -> dict[str, Any]:
+    ratios = _ratios(base, treat)
     follow = [v for i, v in ratios.items() if not i.endswith("-00")]
     first = [v for i, v in ratios.items() if i.endswith("-00")]
+    per_run = (
+        [
+            statistics.median(t["ttft"][i] / b["ttft"][i] for i in b["ttft"])
+            for b, t in zip(base, treat, strict=True)
+        ]
+        if len(base) == len(treat)
+        else []
+    )
     return {
         "median_ratio": statistics.median(ratios.values()),
         "follow_ups": statistics.median(follow),
         "first": statistics.median(first),
         "faster": sum(v < 1 for v in ratios.values()) / len(ratios),
-        "ci": session_bootstrap(ratios),
+        # Per-repetition paired medians (run k of one arm vs run k of the other): the
+        # plainest view of run-to-run spread.
+        "per_run": per_run,
+        "ci": hierarchical_bootstrap(base, treat, n_boot),
     }
 
 
-def session_bootstrap(ratios: dict[str, float], n: int = 10_000) -> tuple[float, float]:
-    """95% CI for the median paired ratio, resampling whole sessions (requests in a session
-    share a file and a cache history, so they aren't independent)."""
-    sessions: dict[str, list[float]] = {}
-    for i, v in ratios.items():
-        sessions.setdefault(i.split("-")[0], []).append(v)
+def hierarchical_bootstrap(
+    base: list[dict[str, Any]], treat: list[dict[str, Any]], n: int
+) -> tuple[float, float]:
+    """Percentile 95% interval for the median paired ratio, resampling at two levels:
+    runs (with replacement, independently within each arm), then whole sessions
+    (requests in a session share a file and a cache history).
+
+    Caveats, reported with the number: with 2-3 runs per arm the run level has only a
+    handful of distinct resamples, and sessions ran back to back on one server, so they
+    are not fully independent either. Treat it as a rough bound, not an exact interval.
+    """
+    ids = sorted(base[0]["ttft"])
+    sessions: dict[str, list[str]] = {}
+    for i in ids:
+        sessions.setdefault(i.split("-")[0], []).append(i)
     keys = sorted(sessions)
     rng = random.Random(4)
     meds = []
     for _ in range(n):
-        sample = [v for k in (rng.choice(keys) for _ in keys) for v in sessions[k]]
+        bs = [rng.choice(base) for _ in base]
+        ts = [rng.choice(treat) for _ in treat]
+        ratios = _ratios(bs, ts)
+        sample = [ratios[i] for k in (rng.choice(keys) for _ in keys) for i in sessions[k]]
         meds.append(statistics.median(sample))
     return pct(meds, 2.5), pct(meds, 97.5)
 
@@ -236,8 +265,10 @@ def main() -> None:
             out["pairs"][f"{label} | {scope}"] = p
             print(
                 f"{label:36s} [{scope:40s}] n_runs={len(bb)}/{len(tt)} "
-                f"median={p['median_ratio']:.3f} CI95(session)={p['ci'][0]:.3f}-{p['ci'][1]:.3f} "
-                f"follow={p['follow_ups']:.3f} first={p['first']:.3f} faster={p['faster']:.0%}"
+                f"median={p['median_ratio']:.3f} "
+                f"CI95(runs+sessions)={p['ci'][0]:.3f}-{p['ci'][1]:.3f} "
+                f"follow={p['follow_ups']:.3f} first={p['first']:.3f} faster={p['faster']:.0%} "
+                f"per_run={[round(x, 3) for x in p['per_run']]}"
             )
 
     print("\n== Queue-free view: server-side prefill time (prompt_ms), valid runs")

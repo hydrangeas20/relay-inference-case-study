@@ -31,21 +31,21 @@ ratio of pooled p50s         : 3.89x
 ratio of median per-run p95s : 2.88x
 
 == Paired per-request comparisons (median TTFT per request across runs)
-fix                                  [valid, all reps                         ] n_runs=3/3 median=0.217 CI95(session)=0.188-0.234 follow=0.206 first=0.709 faster=100%
-fix                                  [valid, planned reps 1-3 only            ] n_runs=3/3 median=0.217 CI95(session)=0.188-0.234 follow=0.206 first=0.709 faster=100%
-fix                                  [ALL runs incl. invalid (non-inferential)] n_runs=3/3 median=0.217 CI95(session)=0.188-0.234 follow=0.206 first=0.709 faster=100%
-cache_delivers_gain                  [valid, all reps                         ] n_runs=3/3 median=0.243 CI95(session)=0.216-0.268 follow=0.231 first=0.779 faster=94%
-cache_delivers_gain                  [valid, planned reps 1-3 only            ] n_runs=1/3 median=0.243 CI95(session)=0.210-0.268 follow=0.232 first=0.765 faster=96%
-cache_delivers_gain                  [ALL runs incl. invalid (non-inferential)] n_runs=5/3 median=0.244 CI95(session)=0.210-0.259 follow=0.224 first=0.776 faster=96%
-P4 original+cache / fixed+nocache    [valid, all reps                         ] n_runs=3/3 median=1.091 CI95(session)=1.069-1.135 follow=1.084 first=1.148 faster=12%
-P4 original+cache / fixed+nocache    [valid, planned reps 1-3 only            ] n_runs=1/3 median=1.117 CI95(session)=1.061-1.152 follow=1.117 first=1.150 faster=19%
-P4 original+cache / fixed+nocache    [ALL runs incl. invalid (non-inferential)] n_runs=5/3 median=1.083 CI95(session)=1.041-1.112 follow=1.073 first=1.134 faster=15%
-P5 fixed+nocache / original+cache    [valid, all reps                         ] n_runs=3/3 median=0.917 CI95(session)=0.882-0.935 follow=0.922 first=0.872 faster=88%
-P5 fixed+nocache / original+cache    [valid, planned reps 1-3 only            ] n_runs=3/1 median=0.895 CI95(session)=0.868-0.943 follow=0.895 first=0.871 faster=81%
-P5 fixed+nocache / original+cache    [ALL runs incl. invalid (non-inferential)] n_runs=3/5 median=0.923 CI95(session)=0.899-0.961 follow=0.932 first=0.882 faster=85%
-negative_control                     [valid, all reps                         ] n_runs=2/2 median=0.905 CI95(session)=0.878-0.923 follow=0.905 first=0.904 faster=83%
-negative_control                     [valid, planned reps 1-3 only            ] n_runs=2/2 median=0.905 CI95(session)=0.878-0.923 follow=0.905 first=0.904 faster=83%
-negative_control                     [ALL runs incl. invalid (non-inferential)] n_runs=3/3 median=0.933 CI95(session)=0.915-0.945 follow=0.932 first=0.937 faster=79%
+fix                                  [valid, all reps                         ] n_runs=3/3 median=0.217 CI95(runs+sessions)=0.183-0.240 follow=0.206 first=0.709 faster=100% per_run=[0.21, 0.223, 0.22]
+fix                                  [valid, planned reps 1-3 only            ] n_runs=3/3 median=0.217 CI95(runs+sessions)=0.183-0.240 follow=0.206 first=0.709 faster=100% per_run=[0.21, 0.223, 0.22]
+fix                                  [ALL runs incl. invalid (non-inferential)] n_runs=3/3 median=0.217 CI95(runs+sessions)=0.183-0.240 follow=0.206 first=0.709 faster=100% per_run=[0.21, 0.223, 0.22]
+cache_delivers_gain                  [valid, all reps                         ] n_runs=3/3 median=0.243 CI95(runs+sessions)=0.209-0.267 follow=0.231 first=0.779 faster=94% per_run=[0.236, 0.253, 0.245]
+cache_delivers_gain                  [valid, planned reps 1-3 only            ] n_runs=1/3 median=0.243 CI95(runs+sessions)=0.209-0.268 follow=0.232 first=0.765 faster=96% per_run=[]
+cache_delivers_gain                  [ALL runs incl. invalid (non-inferential)] n_runs=5/3 median=0.244 CI95(runs+sessions)=0.204-0.266 follow=0.224 first=0.776 faster=96% per_run=[]
+P4 original+cache / fixed+nocache    [valid, all reps                         ] n_runs=3/3 median=1.091 CI95(runs+sessions)=1.066-1.173 follow=1.084 first=1.148 faster=12% per_run=[1.114, 1.085, 1.089]
+P4 original+cache / fixed+nocache    [valid, planned reps 1-3 only            ] n_runs=1/3 median=1.117 CI95(runs+sessions)=1.062-1.182 follow=1.117 first=1.150 faster=19% per_run=[]
+P4 original+cache / fixed+nocache    [ALL runs incl. invalid (non-inferential)] n_runs=5/3 median=1.083 CI95(runs+sessions)=1.038-1.155 follow=1.073 first=1.134 faster=15% per_run=[]
+P5 fixed+nocache / original+cache    [valid, all reps                         ] n_runs=3/3 median=0.917 CI95(runs+sessions)=0.852-0.935 follow=0.922 first=0.872 faster=88% per_run=[0.898, 0.922, 0.919]
+P5 fixed+nocache / original+cache    [valid, planned reps 1-3 only            ] n_runs=3/1 median=0.895 CI95(runs+sessions)=0.846-0.942 follow=0.895 first=0.871 faster=81% per_run=[]
+P5 fixed+nocache / original+cache    [ALL runs incl. invalid (non-inferential)] n_runs=3/5 median=0.923 CI95(runs+sessions)=0.867-0.964 follow=0.932 first=0.882 faster=85% per_run=[]
+negative_control                     [valid, all reps                         ] n_runs=2/2 median=0.905 CI95(runs+sessions)=0.843-0.955 follow=0.905 first=0.904 faster=83% per_run=[0.857, 0.955]
+negative_control                     [valid, planned reps 1-3 only            ] n_runs=2/2 median=0.905 CI95(runs+sessions)=0.843-0.955 follow=0.905 first=0.904 faster=83% per_run=[0.857, 0.955]
+negative_control                     [ALL runs incl. invalid (non-inferential)] n_runs=3/3 median=0.933 CI95(runs+sessions)=0.839-0.991 follow=0.932 first=0.937 faster=79% per_run=[0.914, 0.903, 0.955]
 
 == Queue-free view: server-side prefill time (prompt_ms), valid runs
 shared-original-cache        prefill ms median    2025   uncached prefill ms/token median 1.149 (n=144)

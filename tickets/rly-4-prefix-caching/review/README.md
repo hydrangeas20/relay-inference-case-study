@@ -22,18 +22,20 @@ The headline finding survives. The control claims and the CI failure did not sur
 | --- | --- | --- |
 | Ratio of median per-run p50s (the README's "3.9x") | 2,524 → 654 ms | 3.86x |
 | Ratio of pooled p50s | 2,554 → 657 ms | 3.89x |
-| Median of paired per-request ratios | 0.217 (95% CI 0.188–0.234, session bootstrap) | 4.6x (4.3–5.3x) |
+| Median of paired per-request ratios | 0.217; per repetition 0.210 / 0.223 / 0.220 | 4.6x |
 | Ratio of median per-run p95s (the README's "2.9x") | 5,799 → 2,013 ms | 2.88x |
 | Server-side prefill time per request (no queueing), paired median | 0.239 | 4.2x |
 
 **Verdict on the headline:** "3.9x" is correctly computed, and it is the most conservative of the three aggregations. The README now says which aggregation it is. No invalid run belongs to the two headline conditions, so the result doesn't depend on the exclusions.
+
+**Interval (corrected after review).** The first version of this review quoted a 95% CI of 0.188–0.234 from a bootstrap that resampled sessions only. It ignored run-to-run variation, so it was dropped from the headline docs. A bootstrap over runs and sessions gives 0.18–0.24. With 3 runs per arm and sessions sharing one server, that's a rough bound, and it's reported only in the ticket.
 
 ## Findings and fixes
 
 | # | Severity | Finding | Fix in this branch |
 | --- | --- | --- | --- |
 | 1 | High | "All six predictions held" was false under the planned design. P5 was falsified on the planned runs (0.895 < 0.9), and P4 missed its predicted band (1.117). Two extra cache-off runs were added **after** that analysis was read; they moved both inside their bands. That is selective replication. The independent controls, which also lost a run, got no extras | Ticket, README and PR description report planned and post hoc values separately. P5 is marked falsified; P4 as missing its band |
-| 2 | High | CI `check` failed on 2 of 3 attempts (`64dcf8f` attempt 1; head `f86deca`), both in the pytest step. The logs couldn't be retrieved from this environment, so **the CI root cause is unconfirmed** | Reproduced locally. Under 2-core contention, `test_end_to_end` failed 3 of 23 times at the PR head, every time on the 10 ms send-lag gate this PR introduced. The base commit failed 0 of 15 under the same load. The functional test no longer requires the host to meet a measurement bar (the gate itself is unchanged and unit-tested). Fixed version: 0 failures in 20 contended runs; full suite 3 of 3 passing under contention |
+| 2 | High | CI `check` failed on 2 of 3 attempts (`64dcf8f` attempt 1; head `f86deca`), both in the pytest step. The logs couldn't be retrieved from this environment, so **the CI root cause is unconfirmed** | Reproduced locally. Under 2-core contention, `test_end_to_end` failed 3 of 23 times at the PR head, every time on the 10 ms send-lag gate this PR introduced. The base commit failed 0 of 15 under the same load. The functional test no longer requires the host to meet a measurement bar. The gate is unit-tested, and after review the owner scoped it to RLY-4 runs (ADR-0007). Fixed version: 0 failures in 20 contended runs; full suite 3 of 3 passing under contention |
 | 3 | Medium | Wrong figures in the write-up: header "~25 tokens" (actually 43); prompts "1,400–1,800 tokens" (actually 1,470–2,400, median 1,780); follow-ups evaluate "20–55 tokens" (actually 22–135, median 40); prompts diverge "from about the 6th token" (cached prefix is 0, 7 or 10 tokens) | Corrected |
 | 4 | Medium | The write-up claimed the cache share transfers to GPU/vLLM. vLLM caches in fixed-size blocks, evicts under memory pressure, and the real model's tokenizer differs | Reworded: it must be re-measured on vLLM |
 | 5 | Medium | The smoke workflow's "worker drained the queue" step asserted nothing | The step now fails unless the worker's ok-job counter reaches the number of indexing jobs in the smoke trace |
