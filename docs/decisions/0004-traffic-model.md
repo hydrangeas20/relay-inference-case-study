@@ -6,6 +6,8 @@
 
 Four decisions define how Relay's traffic is modelled. The **Why** lines are the engineer's reasoning and are left for the engineer to write. Reference data comes from Azure's public 2024 code trace (CC-BY 4.0, see `traffic/reference/README.md`).
 
+> **Note (2026-10-25):** the four **Why (retrospective)** lines below were added after the decisions were made. They are explanations inferred from the implementation and reference data, approved by hydrangeas20 on 2026-10-25. They are not a contemporaneous record of the original reasoning, and they make no validation claim. The decisions, options, consequences, validation results and open questions are unchanged.
+
 Quantitative claims carry the labels defined in [methodology](../methodology.md#claim-labels). Every AZURE-DERIVED figure below comes from the training days (Fri 10 – Tue 14 May 2024) unless it says otherwise. ADR-0005 explains the split.
 
 ## 1. Daily shape → C. Parametric, checked against Azure
@@ -20,7 +22,7 @@ This is a plausibility check on one number. It doesn't show that Relay's daily s
 
 Only the ratio is checked, not the timing. Relay's busiest hour is 15:00–16:00 UTC (the curve peaks at 15:41) while Azure's is 18:00–20:00 UTC. That difference reflects the two services' different user geography, not an error. Weekends aren't modelled: Azure's training weekend days carry about a third of an average training weekday's volume, with a flatter shape (AZURE-DERIVED).
 
-**Why:** _to be written_
+**Why (retrospective):** Relay's volume and timing are assumptions about a fictional product with its own user geography; Azure's trace is a different service and user base, with one week of data. A parametric envelope keeps Relay's assumptions explicit and editable in one file, and the check against Azure's training weekdays keeps the day-to-night swing plausible without importing Azure's timing. Rescaling Azure's curve would have inherited Azure's busiest hours (18:00–20:00 UTC) instead of Relay's. *(Grounded in the `traffic/relay.toml` header, `traffic/reference/README.md` and the envelope check in `traffic/check.py`.)*
 
 ## 2. Burstiness → C. Fitted bursty model
 
@@ -54,7 +56,7 @@ Burstiness also depends on request rate. Pooled by rate band over the 119 traini
 - **Possible retries or duplicates at low rates (exploratory, AZURE-DERIVED).** Among pairs of arrivals under 1 ms apart, 11.5% share an identical context size at 3–10 rps, against 2.9% for other pairs. This may be a retry or duplicate component. It doesn't change the canonical model.
 - **Sub-second structure is scoped out (ADR-0005 D2).** Azure's raw timestamps show a repeating 250 ms pattern and excess sub-millisecond gaps. Canonical traffic reproduces neither, and is compared with Azure timestamps re-randomised within each 250 ms interval. A `--clustered` variant adds excess clustering without the 250 ms pattern, for sensitivity runs.
 
-**Why:** _to be written_
+**Why (retrospective):** Azure's request rate itself wanders: count dispersion grows with the counting window, which neither Poisson nor a renewal model of the gaps reproduces. Replaying Azure's gaps would tie traces to Azure's absolute rates, which can't be scaled to one GPU or to Relay's peak. A fitted, rate-dependent Cox process gives each trace the burstiness Azure shows at that trace's own rate, and requires a named scenario outside the observed range. In the preregistered Thursday queueing test, and only there, Poisson traffic's median p99 wait was 0.32× Azure's. **The model was fitted to development data and has not passed out-of-sample validation.** Cycle 1 failed, Cycle 2's Candidate D passed only an internal check on development data, and the Wednesday holdout has not been used. Choosing this model is not a validation claim. *(Grounded in the `traffic/burstiness.py` docstring, the dispersion figures above and `analysis/results/validation-validation.json`.)*
 
 ## 3. Request sizes → B. Azure for completions only
 
@@ -70,7 +72,7 @@ Prompt tokens become characters at **3.5 characters per token** (ASSUMED, tempor
 
 Targets smaller than the template can build (**5.6%** of completions) are kept and flagged, never resampled. They come out a median 2.3× too large (10th–90th percentile 1.1×–11.7×). The fidelity claim covers representable targets only. The gateway rejects completions with `max_tokens` above 4,096; Azure's sample contains a few (2 of 26,874 requests in that trace).
 
-**Why:** _to be written_
+**Why (retrospective):** Azure's 2024 trace is from a code service, and its token-size pairs, with a median output of 8 tokens, are consistent with short completions; it has no counterpart for agent turns or indexing jobs. Using Azure's sizes only where they plausibly apply keeps completion sizes empirical, while agent and indexing sizes stay labelled assumptions. Building each prompt to its target with the gateway's own template makes size fidelity measurable. *(Grounded in `traffic/reference/README.md`, the `[sizes]` ASSUMPTION lines in `traffic/relay.toml`, the `X-Relay-Prompt-Chars` header and the fidelity result above.)*
 
 ## 4. Scaling → C. Two trace types
 
@@ -89,7 +91,7 @@ The trace header records the scale and the equivalent number of Relay's daily ac
 
 Each trace carries three identities (ADR-0005 D7): `spec_id` (what was asked for, with its input hashes), `generator_sha256` (the code and environment that built it) and `trace_id` (a hash of the requests themselves, checked on read).
 
-**Why:** _to be written_
+**Why (retrospective):** A real GPU can afford only short runs, while the simulator can replay a whole day at real time. Cold starts, autoscaling and overnight indexing need the whole day; GPU baselines need a busy slice. Compressing time would shrink the fitted burstiness timescale (τ of roughly 8–11 s), which affects queueing. Both trace types share one scale parameter, so they describe the same traffic at the same scale. *(Grounded in the `traffic/generate.py` docstring and the `relay-trace day` / `window` commands.)*
 
 ---
 
