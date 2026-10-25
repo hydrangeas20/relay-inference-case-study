@@ -7,8 +7,10 @@ A run is invalid if the generator couldn't send requests on schedule. Two checks
    percentage of one core. If p95 CPU reaches CPU_SATURATION_PCT, the event loop
    was saturated and send times can't be trusted.
 
-Send lag (actual minus intended send time) is reported for every run but doesn't
-decide validity on its own.
+3. Send lag: p99 of (actual - intended send time) must stay under SEND_LAG_P99_LIMIT_S.
+   The rate check alone compares averages, so a generator that falls behind during a
+   burst and catches up afterwards would pass it while delaying exactly the requests
+   that make up the latency tail.
 """
 
 from __future__ import annotations
@@ -20,6 +22,7 @@ from relay.loadgen.stats import percentiles
 
 RATE_SHORTFALL_LIMIT = 0.02  # methodology rule 4
 CPU_SATURATION_PCT = 90.0  # percent of one core; see docs/decisions/0003
+SEND_LAG_P99_LIMIT_S = 0.010  # 10 ms; provisional, to be revisited after the first GPU run
 
 
 @dataclass
@@ -66,6 +69,14 @@ def check(
             )
     else:
         result.reasons.append("too few requests to check send rate")
+
+    lag_p99 = result.send_lag_s.get("p99")
+    if lag_p99 is not None and lag_p99 > SEND_LAG_P99_LIMIT_S:
+        result.valid = False
+        result.reasons.append(
+            f"send lag p99 {lag_p99 * 1000:.1f} ms exceeds {SEND_LAG_P99_LIMIT_S * 1000:.0f} ms: "
+            "requests left later than scheduled"
+        )
 
     cpu_p95 = result.cpu_pct.get("p95")
     if cpu_p95 is None:

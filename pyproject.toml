@@ -20,6 +20,7 @@ dependencies = [
 [project.scripts]
 relay-corpus = "relay.corpus.fetch:main"
 relay-trace = "relay.traces.generate:main"
+relay-trace-sessions = "relay.traces.sessions:main"
 relay-loadgen = "relay.loadgen.runner:main"
 relay-gateway = "relay.gateway.app:main"
 relay-worker = "relay.worker:main"

@@ -45,14 +45,36 @@ def _times(n: int, rate: float, stretch: float = 1.0) -> list[float]:
 
 
 def test_selfcheck_valid_run() -> None:
-    result = selfcheck.check(_times(100, 10), _times(100, 10, 1.01), [20.0] * 10)
+    intended = _times(100, 10)
+    actual = [t + 0.002 for t in intended]  # every send 2 ms late: normal event-loop jitter
+    result = selfcheck.check(intended, actual, [20.0] * 10)
     assert result.valid, result.reasons
+
+
+def test_selfcheck_steady_drift_is_caught_by_send_lag() -> None:
+    # 1% slow throughout: within the 2% average-rate tolerance, but by the end requests
+    # leave ~100 ms late. Before the send-lag rule this run counted as valid.
+    result = selfcheck.check(_times(100, 10), _times(100, 10, 1.01), [20.0] * 10)
+    assert result.rate_shortfall is not None and result.rate_shortfall < 0.02
+    assert not result.valid
+    assert any("send lag" in r for r in result.reasons)
+
+
+def test_selfcheck_burst_then_catch_up_is_invalid() -> None:
+    # The generator stalls for 50 ms during a burst, then catches up. Average rate is
+    # unchanged, so only the send-lag rule can see that the burst left late.
+    intended = _times(200, 20)
+    actual = [t + (0.05 if 100 <= i < 110 else 0.0) for i, t in enumerate(intended)]
+    result = selfcheck.check(intended, actual, [20.0] * 10)
+    assert result.rate_shortfall is not None and abs(result.rate_shortfall) < 1e-9
+    assert not result.valid
+    assert any("send lag" in r for r in result.reasons)
 
 
 def test_selfcheck_rate_shortfall_invalidates() -> None:
     result = selfcheck.check(_times(100, 10), _times(100, 10, 1.05), [20.0] * 10)
     assert not result.valid
-    assert "below intended" in result.reasons[0]
+    assert any("below intended" in r for r in result.reasons)
 
 
 def test_selfcheck_cpu_saturation_invalidates() -> None:
