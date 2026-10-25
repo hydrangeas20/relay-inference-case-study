@@ -34,7 +34,7 @@ A simulator result for RLY-4 would only show the simulator's latency model. It w
 - **Tokenizer:** copied from llama.cpp's `ggml-vocab-qwen2.gguf`, the vocabulary Qwen2.5-Coder uses. Prompt token counts are therefore real.
 - **Why random weights are acceptable here:** prefill work and cache reuse depend on architecture, tokenizer and token sequence, not on learned weight values.
 - **What follows from that:** outputs are meaningless, so no RLY-4 result says anything about completion quality.
-- **Size:** small (512 hidden, 8 layers), chosen so one 48-request run finishes in a few minutes on one CPU thread. Absolute latencies don't transfer to Relay's 7B model on a GPU, where prefill is far faster. What transfers is the share of prompt tokens a fix lets the engine skip.
+- **Size:** small (512 hidden, 8 layers), chosen so one 48-request run finishes in a few minutes on one CPU thread. Absolute latencies don't transfer to Relay's 7B model on a GPU, where prefill is far faster. The share of prompt tokens a fix lets the engine skip is the more portable result, but it still has to be re-measured on the target engine: block-granular caching and eviction change it.
 
 ### 3. The fix: remove the per-request header from the prompt (`PROMPT_TEMPLATE=metadata`)
 
@@ -51,7 +51,7 @@ A simulator result for RLY-4 would only show the simulator's latency model. It w
 
 - **Fresh server per run,** so no run inherits a warm cache.
 - **CPU pinning:** the server runs on one core, and the gateway and load generator on the other.
-- **Send-lag gate:** every run passes the load generator's self-check, including the new send-lag p99 limit of 10 ms.
+- **Send-lag gate:** every run must pass the load generator's self-check, including the new send-lag p99 limit of 10 ms. Runs that fail are kept on disk and excluded from results.
 
 ## Consequences
 

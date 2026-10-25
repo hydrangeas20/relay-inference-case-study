@@ -10,16 +10,16 @@ A forward-deployed engineering engagement with a fictional customer, run like a 
 
 > **Moving one line of per-request metadata out of the prompt let the prefix cache serve 83% of prompt tokens instead of 0.5%. On the same requests, median time to first token fell 3.9x (2.52 s → 0.65 s) and p95 fell 2.9x.**
 >
-> Measured on a real inference engine (llama.cpp) running on CPU, 3 repetitions, the same replayed trace in every run. Source `cpu`: these are not GPU or vLLM latencies. The share of prompt work saved is what carries over to a GPU; the milliseconds don't.
+> Measured on a real inference engine (llama.cpp) running on CPU, 3 repetitions, the same replayed trace in every run. Source `cpu`: these are not GPU or vLLM latencies. "3.9x" is the ratio of median TTFT (median of the per-run p50s); per request, the paired median ratio is 0.22 (95% CI 0.19–0.23, resampling sessions). The milliseconds don't carry over to a GPU. The cache share probably won't carry over unchanged either: vLLM caches whole fixed-size token blocks, evicts under memory pressure, and Relay's real model has its own tokenizer, so it has to be re-measured there.
 
-**The bug:** Relay's template puts `[relay request_id=… ts=…]` at the top of every prompt. A prefix cache reuses tokens only up to the first difference, so the header made every prompt unique from about its 6th token. Relay turned caching on, and nothing changed.
+**The bug:** Relay's template puts `[relay request_id=… ts=…]` at the top of every prompt. A prefix cache reuses tokens only up to the first difference, so the header made every prompt unique within its first 10 tokens. Relay turned caching on, and nothing changed.
 
 **The fix:** request metadata travels as an `X-Request-Id` header instead of prompt text. Follow-up requests in an editing session then reuse the whole previous prompt.
 
 **The controls:**
 - **Cache on vs off:** with the original template, cache on was no faster than cache off.
 - **No repeated context:** when context doesn't repeat, the fix gains only about 10%.
-- **Predictions first:** predictions and falsification thresholds were committed before results were read, and all six held. One finding was not predicted: with the original template, cache on was about 9% *slower* than cache off, a small overhead this experiment doesn't explain. See [the RLY-4 write-up](tickets/rly-4-prefix-caching/).
+- **Predictions first:** predictions and falsification thresholds were committed before results were read, Four held cleanly (P1, P2, P3, P6). The two control predictions did not: P5 was falsified on the planned runs, and P4 missed its predicted band. Two extra control runs, added after that result was seen, moved both back inside their bands; they're reported as post hoc. With the original template, cache on was about 9% *slower* than cache off. The header's 43 extra tokens explain about a quarter of that; the rest is unexplained. See [the RLY-4 write-up](tickets/rly-4-prefix-caching/).
 
 ---
 
@@ -83,7 +83,7 @@ Every result carries a `source` tag, and every number in this README is labelled
 | Source | What runs | Used for | What it can prove |
 | --- | --- | --- | --- |
 | `gpu` | vLLM on a rented GPU with the real model | Baseline curves, every quality claim | Ground truth at single-GPU scale. **No `gpu` results exist yet** |
-| `cpu` | llama.cpp `llama-server` on CPU ([ADR-0007](docs/decisions/0007-cpu-engine-and-rly4-method.md)) | Engine mechanisms that don't need a GPU to exist, such as prefix caching | That a mechanism works on a real engine, and what share of work it saves. Not GPU latency |
+| `cpu` | llama.cpp `llama-server` on CPU ([ADR-0007](docs/decisions/0007-cpu-engine-and-rly4-method.md)) | Engine mechanisms that don't need a GPU to exist, such as prefix caching | That a mechanism works on a real engine, and how much work it saves on that engine. Not GPU latency, and not a GPU cache hit rate |
 | `sim` | [llm-d-inference-sim](https://github.com/llm-d/llm-d-inference-sim) | Plumbing, autoscaling logic, launch-scale traffic | That the system works end to end. Not inference performance: the simulator's latencies are inputs |
 | `projection` | Capacity model built from measured per-GPU curves | Launch-scale capacity and cost | A projection, labelled as one |
 | `floci` | [Floci](https://github.com/floci-io/floci) AWS emulator (S3, SQS, DynamoDB) | Customer-side plumbing | That the integration works. Nothing about speed |
@@ -159,14 +159,15 @@ make up && make run   # replays traces/smoke.jsonl; results land in results/
 
 **Verified in CI.** The [Stack smoke workflow](.github/workflows/stack.yml) starts the full stack on a clean GitHub runner and replays the smoke trace through it. It first passed on PR #3. Without Docker, `LLAMA_SERVER=… scripts/verify_local_stack.sh` runs the gateway, the worker and the load generator over real sockets, against llama.cpp and an AWS API emulator.
 
-**Reproduce RLY-4** (real engine, CPU only, about 55 minutes). Details are in [the ticket](tickets/rly-4-prefix-caching/).
+**Reproduce RLY-4** (real engine, CPU only, about an hour on 2 cores). Details are in [the ticket](tickets/rly-4-prefix-caching/).
 
 ```bash
-git clone https://github.com/ggml-org/llama.cpp && cd llama.cpp && git checkout 2280f0f
-cmake -B build -DLLAMA_CURL=OFF -DLLAMA_OPENSSL=OFF && cmake --build build --target llama-server -j
-cd -  # back to this repo
-make rly4-model LLAMA_CPP=../llama.cpp                       # synthetic-weight Qwen2 GGUF
-make rly4-run LLAMA_SERVER=../llama.cpp/build/bin/llama-server REPS=3
+git clone https://github.com/ggml-org/llama.cpp ../llama.cpp      # beside this repo, not inside it
+git -C ../llama.cpp checkout 2280f0fd163b03d4331d49e08460f66502e35854
+cmake -S ../llama.cpp -B ../llama.cpp/build -DLLAMA_CURL=OFF -DLLAMA_OPENSSL=OFF
+cmake --build ../llama.cpp/build --target llama-server -j
+make rly4-model LLAMA_CPP=../llama.cpp                       # synthetic-weight Qwen2 GGUF (sha256 4ecee853…)
+make rly4-run LLAMA_SERVER=$PWD/../llama.cpp/build/bin/llama-server REPS=3
 make rly4-report                                             # results/rly-4/report.md
 ```
 
@@ -182,7 +183,7 @@ make rly4-report                                             # results/rly-4/rep
 | --- | --- |
 | Engine | llama.cpp `llama-server` at commit `2280f0f`, 1 slot, 1 thread, pinned to its own core. Restarted for every run, so every run starts with a cold cache |
 | Model | Qwen2 architecture with seeded random weights and the real Qwen2 tokenizer ([why](docs/decisions/0007-cpu-engine-and-rly4-method.md)). The model file's hash is in every manifest |
-| Workload | 8 editing sessions × 6 inline-completion requests over real source files from the pinned corpus. Prompts are about 1,400–1,800 tokens. The cursor advances 80–240 characters between requests |
+| Workload | 8 editing sessions × 6 inline-completion requests over real source files from the pinned corpus. Prompts are 1,470–2,400 tokens (median 1,780). The cursor advances 80–240 characters between requests |
 | Arrivals | Open-loop Poisson at 0.25 requests/s. The identical trace file is replayed in every run |
 | Changed | One factor at a time: the gateway template (`original` / `metadata`) and the server prompt cache (on / off) |
 | Negative control | The same arrival times and cursor positions, but no file repeats, so there's no shared context to reuse |
@@ -207,10 +208,10 @@ Median across valid runs (min–max). TTFT and E2E are client-measured, in ms, s
 | Did turning the cache on do anything with the original template? | 48 | 1.09 (0.99–1.34) | 12% | 1.08 |
 | Does the fix help when context doesn't repeat? (negative control) | 48 | 0.90 (0.78–1.02) | 83% | 0.90 |
 
-**Excluded runs.** Four of 17 runs failed the send-lag self-check (p99 12–24 ms against a 10 ms limit). They're kept on disk and listed in [report.md](results/rly-4/report.md). The cache-off control got two extra runs (17 runs in total).
+**Excluded runs.** Four of 17 runs failed the send-lag self-check (p99 12–24 ms against a 10 ms limit). They're kept on disk and listed in [report.md](results/rly-4/report.md). The cache-off control got two extra runs (17 runs in total). They were added after the analysis had been read and are post hoc; the [review](tickets/rly-4-prefix-caching/review/) reports every result with and without them.
 
 **Mechanism:**
-- **Follow-ups:** with the fix, a follow-up request evaluates only the 20–55 newly typed tokens, and its median TTFT ratio is 0.21.
+- **Follow-ups:** with the fix, a follow-up request evaluates a median of 40 tokens (22–135), and its median TTFT ratio is 0.21. Server-side prefill time, which excludes queueing, fell to 0.24 of the original per request.
 - **First requests:** the first request of a session still prefills the whole file. It gains only from shorter queues (median ratio 0.71).
 - **Server load:** server busy time on the same 48 requests fell from 52% to 21.5%.
 

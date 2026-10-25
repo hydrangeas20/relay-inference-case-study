@@ -48,24 +48,24 @@ Predictions and falsification thresholds were committed before any full run was 
 
 ### Diagnosis
 
-Relay's template starts every prompt with `[relay request_id=… ts=…]`. A prefix cache can only reuse a run of tokens that matches from the **first** token, so two prompts that differ in their 6th token share 5 cacheable tokens, whatever follows.
+Relay's template starts every prompt with `[relay request_id=… ts=…]`. A prefix cache can only reuse a run of tokens that matches from the **first** token, so two prompts share only the tokens before their first difference, whatever follows.
 
-With the original template, llama.cpp served **0.5%** of prompt tokens from its cache. That's the shared opening of the header text, about 8 tokens a request. Turning caching on did nothing useful: TTFT with the cache on was no better than the cache-off control (see the predictions table for the exact comparison).
+With the original template, llama.cpp served **0.5%** of prompt tokens from its cache. That's the shared opening of the header text: 0, 7 or 10 tokens a request. Turning caching on did nothing useful: TTFT with the cache on was no better than the cache-off control (see the predictions table for the exact comparison).
 
-The header is ~25 tokens of a ~1,700-token prompt. It isn't expensive to process. It's expensive because of **where** it sits: at the front, it makes the other ~1,675 tokens impossible to reuse.
+The header is 60 characters, 43 tokens, of a prompt with a median of 1,780 tokens (2.4%). It isn't expensive to process. It's expensive because of **where** it sits: at the front, it makes every token after it impossible to reuse.
 
 ### Experiment design
 
 | | |
 | --- | --- |
 | Question | Is the per-request header the reason prefix caching did nothing, and how much TTFT does removing it recover? |
-| Workload | 8 editing sessions × 6 completion requests = 48 requests per run. Each session sends one real source file (pinned corpus) from its start to a cursor that begins at 6,000 characters and advances 80–240 characters per request. Prompts are about 1,400–1,800 tokens |
+| Workload | 8 editing sessions × 6 completion requests = 48 requests per run. Each session sends one real source file (pinned corpus) from its start to a cursor that begins at 6,000 characters and advances 80–240 characters per request. Prompts are 1,470–2,400 tokens (median 1,780) |
 | Arrivals | Open-loop Poisson, 0.25 requests/s, seed 4. Sessions arrive one after another |
 | Output | Fixed `max_tokens` 8, so decode work is the same across configurations |
 | Server | Fresh `llama-server` per run (cold cache), 1 slot, 1 thread, pinned to CPU 0; gateway and load generator pinned to CPU 1 |
 | One change at a time | Template (`original` vs `metadata`), and the server's prompt cache (`--cache-prompt` vs `--no-cache-prompt`) |
 | Negative control | The same arrival times and cursors, but every request uses a different file, so no file context repeats |
-| Repetitions | 3 per configuration, plus 2 extra for the cache-off control after 2 of its runs failed the self-check: 17 runs in total. 13 valid; the 4 that failed (send lag) are listed below and excluded |
+| Repetitions | 3 per configuration were planned (15 runs). 4 failed the send-lag self-check and are excluded. 2 extra cache-off runs were added **after** the analysis showed that control with 1 valid run and P5 failing: they are post hoc (see predictions below). 17 runs in total, 13 valid |
 | Evidence of mechanism | Per-request `cache_n` and `prompt_n` reported by the server in each response, cross-checked against its Prometheus counters |
 
 ### What changed
@@ -109,15 +109,15 @@ The header is ~25 tokens of a ~1,700-token prompt. It isn't expensive to process
 | P1 | Original template: cache share < 2% | 0.5% | Held |
 | P2 | Fixed template, sessions: cache share > 60% | 82.9% | Held |
 | P3 | Median TTFT ratio < 0.5; follow-ups < 0.3 | 0.22; follow-ups 0.21 | Held |
-| P4 | Original + cache ≈ fixed, no cache (ratio 0.9–1.1) | 1.09 (p10–p90 0.99–1.34) | Held, at the edge of the band |
-| P5 | Fixed template without cache gives no gain over original (ratio ≥ 0.9) | 0.92 | Held |
+| P4 | Original + cache ≈ fixed, no cache (ratio 0.9–1.1; falsified outside 0.8–1.25) | Planned runs: 1.117 (1 valid cache-off run). With the 2 post hoc runs: 1.091 (95% CI 1.07–1.14) | **Missed the predicted band** on the planned runs; not falsified |
+| P5 | Fixed template without cache gives no gain over original (falsified if ratio < 0.9) | Planned runs: **0.895**. With the 2 post hoc runs: 0.917 (95% CI 0.88–0.94) | **Falsified on the planned runs.** The post hoc value passes, but its CI still reaches below 0.9, so it doesn't rescue P5 |
 | P6 | Negative control: ratio ≥ 0.85 | 0.90 | Held |
 
-**Not predicted:** with the original template, turning the cache **on** was about 9% slower than the cache-off control, and only 12% of requests were faster. Candidate causes include llama.cpp's cache bookkeeping when nothing is reused, and the header's extra ~25 tokens (about 1.5% of the prompt). Neither was tested here. Either way, the customer's report holds: turning caching on didn't help.
+**Not predicted:** with the original template, turning the cache **on** was about 9% slower than the cache-off control, and only 12% of requests were faster. The header's 43 extra tokens (2.4% of the prompt) explain part of it. The rest shows up as a 6% higher prefill cost per token in that condition (1.149 vs 1.080 ms/token, server-reported). The cause wasn't tested: cache bookkeeping, attention cost over longer prompts and between-run noise all remain possible. Either way, the customer's report holds: turning caching on didn't help.
 
 ### Why it works, and the trade-offs
 
-- **Follow-up requests reuse almost everything.** With the fix, each request after the first in a session matches the previous prompt up to the old cursor. The engine evaluates only the roughly 20–55 newly typed tokens. Follow-ups had a median TTFT ratio of **0.21**: about 5x faster.
+- **Follow-up requests reuse almost everything.** With the fix, each request after the first in a session matches the previous prompt up to the old cursor. The engine evaluated a median of 40 tokens per follow-up (22–135). Some follow-ups re-evaluated more than the newly typed text alone would need; that wasn't investigated. Follow-ups had a median TTFT ratio of **0.21**: about 5x faster.
 - **The first request in each session gains too, but less** (median ratio 0.71). It still prefills the whole file. It gains because the server is less busy, so it waits less in the queue.
 - **The same hardware does less work.** The server was busy 52% of the time on the original template and 21.5% on the fix, for the same 48 requests. That freed capacity is what would let a GPU fleet serve more users per replica. Sizing it on a GPU is a separate, `gpu`-tagged measurement.
 - **Trade-off 1: request metadata leaves the prompt.** Anything that relied on reading the request ID from the model's input or logs has to read the `X-Request-Id` header instead.
@@ -126,7 +126,7 @@ The header is ~25 tokens of a ~1,700-token prompt. It isn't expensive to process
 
 ### Limits of this result
 
-- **CPU, not GPU.** One CPU thread prefilled about 800–1,000 tokens/s here; a GPU runs Relay's 7B model far faster. The milliseconds don't transfer. The share of prompt tokens served from cache does, because it's set by the token sequences, not the hardware. It still has to be re-measured on vLLM before it goes into capacity planning.
+- **CPU, not GPU.** One CPU thread prefilled about 870–930 tokens/s here; a GPU runs Relay's 7B model far faster. The milliseconds don't transfer. The cache share doesn't necessarily transfer either: vLLM caches whole fixed-size blocks, evicts under memory pressure, and the real model has its own tokenizer. It has to be re-measured on vLLM before it goes into capacity planning.
 - **Synthetic weights.** The model's outputs are meaningless, so nothing here bears on completion quality. Prefill cost depends on architecture and token count, which are real.
 - **One user's session at a time, one server slot.** The workload doesn't interleave sessions from many users, and doesn't exercise eviction or routing across replicas.
 - **Small samples.** There are 48 requests per run, so p99 is roughly the slowest request. p99 is reported but not used for any conclusion.
