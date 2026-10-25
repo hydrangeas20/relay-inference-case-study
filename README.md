@@ -30,7 +30,7 @@ A forward-deployed engineering engagement with a fictional customer, run like a 
 | Gateway, open-loop load generator, indexing worker | Implemented | 277 tests pass (3 skipped). Run end to end over real sockets against llama.cpp and an AWS API emulator (`scripts/verify_local_stack.sh`, results in `results/phase1-verification/`) |
 | Run validity and provenance | Implemented | Self-check (rate, send-lag p99, generator CPU), 3-layer TTFT reconciliation, a manifest in every summary |
 | RLY-4 prefix caching | **Measured on CPU** (`cpu`) | 15 runs plus 2 extra control runs, raw records committed: [`results/rly-4/`](results/rly-4/) |
-| Docker Compose stack (simulator, Floci, Prometheus, Grafana) | Implemented, **not yet run end to end** | [Stack smoke workflow](.github/workflows/stack.yml) |
+| Docker Compose stack (simulator, Floci, Prometheus, Grafana) | Implemented; **smoke-tested end to end in CI** (`sim`) | [Stack smoke workflow](.github/workflows/stack.yml) |
 | Traffic model (Phase 2) | Implemented, **not validated out of sample** | [Traffic model status](#traffic-model-status) |
 | Real-GPU baseline, quality evals, cost model | **Not started** | No `gpu` result exists yet |
 | RLY-0 to RLY-3, RLY-5 to RLY-7 | Planned | Ticket briefs in [`tickets/`](tickets/) |
@@ -157,7 +157,7 @@ make check   # ruff, mypy --strict, pytest
 make up && make run   # replays traces/smoke.jsonl; results land in results/
 ```
 
-**Not verified yet.** The stack has never been started end to end: this project's build environments can't pull Docker images. This PR adds a [workflow](.github/workflows/stack.yml) that starts it on a clean GitHub runner and replays the smoke trace through it. Until that passes, use the local, Docker-free check: `LLAMA_SERVER=… scripts/verify_local_stack.sh`. It runs the gateway, the worker and the load generator over real sockets, against llama.cpp and an AWS API emulator.
+**Verified in CI.** The [Stack smoke workflow](.github/workflows/stack.yml) starts the full stack on a clean GitHub runner and replays the smoke trace through it. It first passed on PR #3. Without Docker, `LLAMA_SERVER=… scripts/verify_local_stack.sh` runs the gateway, the worker and the load generator over real sockets, against llama.cpp and an AWS API emulator.
 
 **Reproduce RLY-4** (real engine, CPU only, about 55 minutes). Details are in [the ticket](tickets/rly-4-prefix-caching/).
 
