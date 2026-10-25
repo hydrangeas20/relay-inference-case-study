@@ -9,6 +9,7 @@ Every results file carries a `source` field:
 | `source` | Meaning |
 |---|---|
 | `gpu` | Measured on a real GPU running the real model |
+| `cpu` | Measured on a real inference engine running on CPU (ADR-0007). Real caching and scheduling behaviour; not GPU latency. With RLY-4's synthetic-weight model, no quality signal |
 | `sim` | Measured against the calibrated simulator |
 | `projection` | Computed from a capacity model (e.g. Vidur, or arithmetic from measured per-GPU capacity) |
 | `floci` | Measured on the emulated AWS plumbing, with no inference in the path |
@@ -43,8 +44,18 @@ The simulator's latency parameters are fitted to real GPU measurements (Phase 3)
 A slow client makes a fast server look slow. Every load test run must:
 
 - **Be open-loop.** Requests are sent on a schedule (e.g. Poisson arrivals at the target rate) regardless of whether earlier ones have completed. Closed-loop generators hide overload instead of revealing it.
-- **Self-check.** Log the generator's intended vs. achieved send rate and its CPU usage. If achieved rate falls more than 2% short of intended, or the generator's CPU is saturated, the run is **invalid** and is discarded.
+- **Self-check.** Log the generator's intended vs. achieved send rate, each request's send lag (actual minus scheduled send time) and the generator's CPU usage. The run is **invalid** if achieved rate falls more than 2% short of intended, if send-lag p99 exceeds 10 ms, or if the generator's CPU is saturated. Invalid runs are kept and reported as invalid, never used as results. The send-lag rule exists because the rate check compares averages: a generator that falls behind during a burst and catches up afterwards passes it while delaying exactly the requests that form the tail.
 - **Scale out when needed.** High-volume simulator runs use several generator processes.
+
+### What TTFT measures, layer by layer
+
+| Layer | Clock starts | Clock stops | Includes |
+|---|---|---|---|
+| Client (load generator) | Just before the HTTP request is sent, at its scheduled time | First SSE line carrying generated text | Connection setup if no pooled connection is free, gateway prompt building, gateway-to-server hop, server queueing, prefill, first decode step |
+| Gateway (`relay_gateway_upstream_ttft_seconds`) | Request received, before the upstream call | First upstream line carrying generated text | Upstream connection, server queueing, prefill, first decode step |
+| Server (`vllm:time_to_first_token_seconds`) | As defined by the engine | As defined by the engine | Engine-internal. llama.cpp doesn't export this histogram; its per-request `prompt_ms` (prefill time) is recorded instead |
+
+SLOs are judged on client samples, the only layer that matches what a user waits for. Server-side histograms are coarse (vLLM-style buckets jump from 0.25 s to 0.5 s), so they can only cross-check, not resolve, a 300 ms target.
 
 ## 5. Before and after means same traffic
 

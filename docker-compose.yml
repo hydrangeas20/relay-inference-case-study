@@ -39,10 +39,10 @@ services:
       - --model=relay/code-7b
       - --port=8000
       - --mode=random
-      - --time-to-first-token=150
-      - --time-to-first-token-std-dev=30
-      - --inter-token-latency=20
-      - --inter-token-latency-std-dev=5
+      - --time-to-first-token=150ms
+      - --time-to-first-token-std-dev=30ms
+      - --inter-token-latency=20ms
+      - --inter-token-latency-std-dev=5ms
       - --max-num-seqs=8
       - --time-factor-under-load=2.0
 

@@ -1,0 +1,54 @@
+name: Stack smoke
+
+# Starts the full Docker Compose stack (Floci, inference simulator, gateway, worker,
+# Prometheus, Grafana) on a clean GitHub runner and replays the smoke trace through it.
+# This is the end-to-end check the Phase 1 spec left open: it has never run anywhere
+# else, because the environments used to build the stack couldn't pull images.
+# Source of every number here: `sim`. Nothing in this job measures real inference.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+      - run: uv sync --all-extras
+      - name: Fetch the pinned code corpus
+        run: uv run relay-corpus
+      - name: Start the stack
+        run: docker compose up -d --build
+      - name: Wait for gateway, simulator and Floci
+        run: |
+          for url in http://localhost:8080/healthz http://localhost:8000/v1/models http://localhost:4566; do
+            for i in $(seq 1 90); do curl -s -o /dev/null "$url" && break; sleep 2; done
+            curl -s -o /dev/null "$url" || { echo "not up: $url"; exit 1; }
+          done
+      - name: Replay the smoke trace (completion, agent and indexing traffic)
+        run: docker compose run --rm loadgen relay-loadgen --trace traces/smoke.jsonl
+      - name: Worker drained the indexing jobs
+        run: |
+          sleep 15
+          curl -s http://localhost:9101/metrics | grep -E '^relay_worker_' | tee worker-metrics.txt
+      - name: Stack state and logs
+        if: always()
+        run: |
+          docker compose ps -a
+          docker compose images
+          docker compose logs --no-color > stack-logs.txt 2>&1 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: stack-smoke
+          path: |
+            results/
+            worker-metrics.txt
+            stack-logs.txt
+      - if: always()
+        run: docker compose down -v
