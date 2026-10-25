@@ -1,4 +1,4 @@
-.PHONY: help setup corpus trace up down logs run check lint format typecheck test clean
+.PHONY: help setup corpus trace traffic-check up down logs run check lint format typecheck test clean
 
 TRACE ?= traces/smoke.jsonl
 
@@ -13,7 +13,10 @@ corpus:  ## Fetch the pinned repos into data/corpus (verifies licenses and hashe
 	uv run relay-corpus
 
 trace:  ## Regenerate the smoke trace (30 s at 4 rps, seed 1)
-	uv run relay-trace --out traces/smoke.jsonl --duration 30 --rate 4 --seed 1
+	uv run relay-trace constant --duration 30 --rate 4 --seed 1 --out traces/smoke.jsonl
+
+traffic-check:  ## Check the traffic model against the Azure reference data
+	uv run python -m relay.traffic.report
 
 up:  ## Start the local stack
 	docker compose up -d --build

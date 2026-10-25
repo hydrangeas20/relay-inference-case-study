@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -51,7 +52,13 @@ def test_rejects_count_mismatch(small_corpus: Corpus, tmp_path: Path) -> None:
     params = GeneratorParams(duration_s=30, rate_rps=5, seed=5)
     reqs = generate(small_corpus, params)
     path = tmp_path / "t.jsonl"
-    write_trace(path, build_header(small_corpus, params, len(reqs) + 1), reqs)
+    write_trace(path, build_header(small_corpus, params, len(reqs)), reqs)
+    # The writer always records the true count, so corrupt it on disk.
+    lines = path.read_text().splitlines()
+    header = json.loads(lines[0])
+    header["n_requests"] += 1
+    lines[0] = json.dumps(header)
+    path.write_text("\n".join(lines) + "\n")
     with pytest.raises(TraceFormatError):
         read_trace(path)
 

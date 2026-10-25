@@ -30,6 +30,7 @@ from relay import aws, prompts
 from relay.config import Settings, get_settings
 from relay.corpus.manifest import load_lock
 from relay.corpus.store import Corpus, load_corpus
+from relay.gateway.app import PROMPT_CHARS_HEADER
 from relay.loadgen import reconcile, selfcheck
 from relay.loadgen.stats import percentiles
 from relay.sse import chunk_content
@@ -51,6 +52,7 @@ class RequestRecord:
     e2e_s: float | None = None
     n_chunks: int = 0
     output_chars: int = 0
+    prompt_chars: int | None = None  # built prompt size reported by the gateway (MEASURED)
     error: str | None = None
 
 
@@ -134,6 +136,8 @@ class Replayer:
     ) -> None:
         loop = asyncio.get_running_loop()
         async with self.http.stream("POST", path, json=payload) as resp:
+            header = resp.headers.get(PROMPT_CHARS_HEADER)
+            record.prompt_chars = int(header) if header is not None else None
             if resp.status_code != 200:
                 record.status = f"http_{resp.status_code}"
                 record.error = (await resp.aread()).decode(errors="replace")[:300]
@@ -177,8 +181,11 @@ def summarize(
         "source": settings.inference_backend,
         "trace": {
             "path": str(trace_path),
-            "sha256": trace.sha256,
+            "file_sha256": trace.sha256,
+            "format_version": trace.header.format_version,
             "trace_id": trace.header.trace_id,
+            "spec_id": trace.header.spec_id,
+            "generator_sha256": trace.header.generator_sha256,
         },
         "corpus_sha256": trace.header.corpus_sha256,
         "valid": check.valid,

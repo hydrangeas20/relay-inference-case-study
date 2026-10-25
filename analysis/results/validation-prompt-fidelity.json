@@ -1,0 +1,62 @@
+{
+ "run_at": "2026-09-28T20:22:38+00:00",
+ "trace": {
+  "spec_id": "535f6ceb4f7dc07ae0d5e6c85f328369b2128e2f63a190acc3bfe7e617a1a9f1",
+  "generator_sha256": "fa44fd7e031ac6e0799aa69611cabba4ef94f09316b6513e7ca4eb478076d488",
+  "traffic_model_sha256": "63729ffb3e85477545b4b353ad7561caf5106aef901ff6090e72be089c9355ae",
+  "start": "15:00",
+  "minutes": 60,
+  "peak_rps": 8.0,
+  "seed": 20260928
+ },
+ "chars_per_token": 3.5,
+ "completions_generated": 26874,
+ "rejected_by_gateway": {
+  "count": 2,
+  "statuses": [
+   422
+  ],
+  "note": "excluded from all size statistics below"
+ },
+ "completions": 26872,
+ "conditioning": "both samples restricted to targets >= T, the largest per-request template minimum in the trace",
+ "T_chars": 636,
+ "T_tokens": 181.7,
+ "per_request_minimum_chars_range": [
+  561,
+  636
+ ],
+ "representable_at_or_above_T": 25257,
+ "ks": {
+  "statistic": 0.00598,
+  "critical_5pct": 0.01309,
+  "n_built": 25257,
+  "n_azure": 18747,
+  "passed": true
+ },
+ "built_vs_expected_mismatches": 0,
+ "below_minimum": {
+  "count": 1500,
+  "fraction_of_all_targets": 0.05582,
+  "target_tokens_quantiles_10_50_90": [
+   15.0,
+   74.0,
+   154.0
+  ],
+  "built_tokens_quantiles_10_50_90": [
+   164.3,
+   169.1,
+   176.3
+  ],
+  "inflation_quantiles_10_50_90": [
+   1.105,
+   2.286,
+   11.545
+  ]
+ },
+ "representable_built_vs_target_ratio_quantiles_1_50_99": [
+  0.9996,
+  1.0,
+  1.0004
+ ]
+}

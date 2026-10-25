@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     corpus_lock: Path = Path("corpus/corpus.lock.json")
     corpus_dir: Path = Path("data/corpus")
 
+    # Traffic model (Phase 2).
+    traffic_model: Path = Path("traffic/relay.toml")
+
 
 def get_settings() -> Settings:
     return Settings()

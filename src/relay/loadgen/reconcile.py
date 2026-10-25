@@ -6,10 +6,24 @@ Three layers measure time to first token, each nested inside the next:
   gateway relay_gateway_upstream_ttft_seconds     (gateway -> server, histogram)
   client  per-request timings from the load gen   (user-perceived, exact samples)
 
-An outer layer includes everything an inner layer measures, so at every quantile
-outer >= inner, allowing for the inner histogram's bucket width. A violation means
-some measurement is wrong. The request count seen by the server must also match
-what the client sent, or other traffic polluted the server-side numbers.
+An outer layer's interval contains the inner layer's interval for the same request,
+so per request outer >= inner. Only the client has per-request samples; the other
+layers are histograms. What per-request nesting implies for them, exactly and at any
+sample size, is stochastic dominance at every bucket bound both layers share:
+
+  count(outer <= b) <= count(inner <= b)
+
+(the inner layer may also hold extra requests, e.g. other traffic, which only raise
+its counts). The client's exact samples are counted at the inner histogram's bounds.
+A violation means some measurement is wrong.
+
+Quantiles are reported for reading but are not compared: a Prometheus-style
+histogram estimate interpolates inside a bucket and can land anywhere in it, and
+with a few dozen requests a p99 is decided by the slowest one or two, so comparing
+p99 against p99 flags runs in which every request nested correctly.
+
+The request count seen by the server must also match what the client sent, or
+other traffic polluted the server-side numbers.
 
 This module reports disagreements; it doesn't invalidate the run. What to do about
 a disagreement is recorded in docs/decisions/0003 as an open question.
@@ -76,6 +90,27 @@ class Reconciliation:
     notes: list[str] = field(default_factory=list)
 
 
+def _counts_at(values: Sequence[float], bounds: Iterable[float]) -> Buckets:
+    """Cumulative counts of exact samples at histogram bounds (`le` semantics: v <= bound)."""
+    return {b: float(sum(1 for v in values if v <= b)) for b in bounds}
+
+
+def _dominance_problem(
+    inner: str, inner_cum: Buckets, outer: str, outer_cum: Buckets
+) -> str | None:
+    """Report bounds where the outer layer has more requests at or below them than the inner."""
+    bad = [b for b in sorted(set(inner_cum) & set(outer_cum)) if outer_cum[b] > inner_cum[b]]
+    if not bad:
+        return None
+    b = bad[0]
+    where = "in total" if math.isinf(b) else f"at or below {b * 1000:g} ms"
+    return (
+        f"{outer} has {outer_cum[b]:.0f} requests {where} but {inner} only {inner_cum[b]:.0f}; "
+        f"per request {outer} >= {inner}, so this can't happen "
+        f"({len(bad)} bound(s) violated, first shown)"
+    )
+
+
 def _histogram_layer(name: str, buckets: list[tuple[float, float]]) -> Layer | None:
     if not buckets or not any(math.isinf(b) for b, _ in buckets):
         return None
@@ -105,23 +140,22 @@ def reconcile(
     notes: list[str] = []
 
     gateway = server = None
+    cumulative: dict[str, Buckets] = {}
     if gateway_before is not None and gateway_after is not None:
         streaming = {"workload": {"completion", "agent"}}
-        gateway = _histogram_layer(
-            "gateway",
-            diff(
-                histogram_buckets(gateway_after, GATEWAY_TTFT, streaming),
-                histogram_buckets(gateway_before, GATEWAY_TTFT, streaming),
-            ),
+        gw_buckets = diff(
+            histogram_buckets(gateway_after, GATEWAY_TTFT, streaming),
+            histogram_buckets(gateway_before, GATEWAY_TTFT, streaming),
         )
+        gateway = _histogram_layer("gateway", gw_buckets)
+        cumulative["gateway"] = dict(gw_buckets)
     if server_before is not None and server_after is not None:
-        server = _histogram_layer(
-            "server",
-            diff(
-                histogram_buckets(server_after, SERVER_TTFT),
-                histogram_buckets(server_before, SERVER_TTFT),
-            ),
+        srv_buckets = diff(
+            histogram_buckets(server_after, SERVER_TTFT),
+            histogram_buckets(server_before, SERVER_TTFT),
         )
+        server = _histogram_layer("server", srv_buckets)
+        cumulative["server"] = dict(srv_buckets)
         before_n = counter_total(server_before, SERVER_SUCCESS)
         after_n = counter_total(server_after, SERVER_SUCCESS)
         if before_n is not None and after_n is not None:
@@ -144,15 +178,14 @@ def reconcile(
         return Reconciliation("unavailable", layers, [], ["no server or gateway metrics captured"])
 
     for inner, outer in zip(layers, layers[1:], strict=False):
-        for key, inner_v in inner.quantiles.items():
-            outer_v = outer.quantiles.get(key)
-            if inner_v is None or outer_v is None:
-                continue
-            tolerance = inner.resolution_s.get(key) or 0.0
-            if outer_v + tolerance < inner_v:
-                problems.append(
-                    f"{outer.name} {key} {outer_v * 1000:.1f} ms is below {inner.name} "
-                    f"{key} {inner_v * 1000:.1f} ms (tolerance {tolerance * 1000:.1f} ms)"
-                )
+        inner_cum = cumulative[inner.name]
+        outer_cum = (
+            _counts_at(client_ttft_s, inner_cum) if outer is client else cumulative[outer.name]
+        )
+        if not any(math.isfinite(b) for b in set(inner_cum) & set(outer_cum)):
+            notes.append(f"{inner.name} and {outer.name} histograms share no bucket bounds")
+        problem = _dominance_problem(inner.name, inner_cum, outer.name, outer_cum)
+        if problem:
+            problems.append(problem)
     status = "inconsistent" if problems else "consistent"
     return Reconciliation(status, layers, problems, notes)

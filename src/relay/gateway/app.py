@@ -29,6 +29,10 @@ from relay.config import Settings, get_settings
 from relay.gateway import templates
 from relay.sse import chunk_content
 
+# The gateway reports the size of every prompt it builds (ADR-0005 D5).
+PROMPT_CHARS_HEADER = "X-Relay-Prompt-Chars"
+PROMPT_CHAR_BUCKETS = (500, 1_000, 2_000, 4_000, 7_000, 10_000, 15_000, 20_000, 27_000, 40_000)
+
 LATENCY_BUCKETS = (
     0.01, 0.025, 0.05, 0.075, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5,
     0.75, 1.0, 1.5, 2.0, 3.0, 5.0, 10.0, 30.0, 60.0,
@@ -68,6 +72,7 @@ class GatewayMetrics:
     duration: Histogram
     upstream_ttft: Histogram
     in_flight: Gauge
+    prompt_chars: Histogram
 
     @classmethod
     def create(cls) -> GatewayMetrics:
@@ -100,6 +105,14 @@ class GatewayMetrics:
                 ["workload"],
                 registry=registry,
             ),
+            prompt_chars=Histogram(
+                "relay_gateway_prompt_chars",
+                "Characters in the prompt the gateway built (chars / 3.5 approximates tokens "
+                "until Phase 3's tokenizer)",
+                ["workload"],
+                buckets=PROMPT_CHAR_BUCKETS,
+                registry=registry,
+            ),
         )
 
 
@@ -124,8 +137,11 @@ def create_app(
     app.mount("/metrics", make_asgi_app(registry=metrics.registry))
     app.state.metrics = metrics
 
-    async def stream_upstream(path: str, body: dict[str, Any], workload: str) -> StreamingResponse:
+    async def stream_upstream(
+        path: str, body: dict[str, Any], workload: str, prompt_chars: int
+    ) -> StreamingResponse:
         received = time.perf_counter()
+        metrics.prompt_chars.labels(workload).observe(prompt_chars)
         metrics.in_flight.labels(workload).inc()
         try:
             upstream = await client.send(client.build_request("POST", path, json=body), stream=True)
@@ -163,7 +179,11 @@ def create_app(
                 metrics.duration.labels(workload).observe(time.perf_counter() - received)
                 metrics.requests.labels(workload, status).inc()
 
-        return StreamingResponse(relay_stream(), media_type="text/event-stream")
+        return StreamingResponse(
+            relay_stream(),
+            media_type="text/event-stream",
+            headers={PROMPT_CHARS_HEADER: str(prompt_chars)},
+        )
 
     @app.post("/v1/complete")
     async def complete(body: CompleteBody) -> StreamingResponse:
@@ -182,7 +202,7 @@ def create_app(
             "temperature": 0,
             "stream": True,
         }
-        return await stream_upstream("/completions", upstream_body, "completion")
+        return await stream_upstream("/completions", upstream_body, "completion", len(prompt))
 
     @app.post("/v1/agent")
     async def agent(body: AgentBody) -> StreamingResponse:
@@ -202,7 +222,8 @@ def create_app(
             "temperature": 0,
             "stream": True,
         }
-        return await stream_upstream("/chat/completions", upstream_body, "agent")
+        chars = sum(len(m["content"]) for m in messages)
+        return await stream_upstream("/chat/completions", upstream_body, "agent", chars)
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:

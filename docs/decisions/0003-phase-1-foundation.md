@@ -32,7 +32,7 @@ Seven decisions shaped the Phase 1 foundation. Each lists the options that were 
 - **B. Server side only.**
 - **C. Both, with a reconciliation check** ✅.
 
-**Consequences:** three nested TTFT measurements are compared on every run: server (`vllm:time_to_first_token_seconds`), gateway (`relay_gateway_upstream_ttft_seconds`) and client (per-request). An outer layer must never be faster than an inner one, beyond the inner histogram's bucket width. The server's completed-request count must be at least what the client streamed.
+**Consequences:** three nested TTFT measurements are compared on every run: server (`vllm:time_to_first_token_seconds`), gateway (`relay_gateway_upstream_ttft_seconds`) and client (per-request). An outer layer must never be faster than an inner one, beyond the inner histogram's bucket width. *(Amended by [ADR-0006](0006-reconciliation-check.md), accepted 2026-09-29: per-request nesting is checked as count dominance at shared bucket bounds, with no tolerance, instead of quantile against quantile.)* The server's completed-request count must be at least what the client streamed.
 
 **Why (retrospective):** Each layer fails differently: client timings absorb the generator's own delays, and server-side histograms are coarse and can include other traffic. Comparing whichever layers are available on a run, and checking that timings nest and request counts agree within the available measurement resolution, turns silent measurement errors into reported problems. Not every inference server exports a server-side TTFT metric; where none exists, the check covers the layers that do. *(Grounded in the `loadgen/reconcile.py` docstring.)*
 

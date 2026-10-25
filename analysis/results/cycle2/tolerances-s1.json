@@ -1,0 +1,157 @@
+{
+ "computed_at": "2026-10-06T01:49:05+00:00",
+ "statistic": "S1 = sqrt(max(CV^2(W), 0)), W in {1, 2, 5, 10, 30, 60} s",
+ "method": "Cycle 2 preregistration section 5 = Cycle 1 \u00a76.1 (azure_traffic.tolerances): 2 x max over windows of the across-day SD (ddof=1) of daily pooled curves; days with >= 3 eligible hours in the band; band qualifies with >= 3 such days",
+ "development_days": [
+  "Fri",
+  "Sat",
+  "Sun",
+  "Mon",
+  "Tue",
+  "Thu"
+ ],
+ "caches": {
+  "training.npz": {
+   "sha256": "1f0e15daa6b8bbbe0c2a1b2f8afbd92067fc684bca22157e3f80060947b92362",
+   "bytes": 88430428,
+   "days": [
+    "2024-05-10",
+    "2024-05-11",
+    "2024-05-12",
+    "2024-05-13",
+    "2024-05-14"
+   ]
+  },
+  "validation.npz": {
+   "sha256": "47ea7ddf5691f42dda662cc1bbee5e75149fbec7c39ac065d9610a2069a4fde7",
+   "bytes": 25640526,
+   "days": [
+    "2024-05-16"
+   ]
+  }
+ },
+ "wednesday_accessed": false,
+ "tolerances": {
+  "3-10": {
+   "eligible_hours_by_day": {
+    "Fri": 5,
+    "Sat": 8,
+    "Sun": 10,
+    "Mon": 5,
+    "Tue": 5,
+    "Thu": 4
+   },
+   "qualifying_days": [
+    "Fri",
+    "Sat",
+    "Sun",
+    "Mon",
+    "Tue",
+    "Thu"
+   ],
+   "qualifies": true,
+   "sd_by_window": {
+    "1": 0.04621,
+    "2": 0.04562,
+    "5": 0.03699,
+    "10": 0.02908,
+    "30": 0.02528,
+    "60": 0.02308
+   },
+   "tolerance": 0.0924
+  },
+  "10-30": {
+   "eligible_hours_by_day": {
+    "Fri": 9,
+    "Sat": 15,
+    "Sun": 14,
+    "Mon": 8,
+    "Tue": 8,
+    "Thu": 10
+   },
+   "qualifying_days": [
+    "Fri",
+    "Sat",
+    "Sun",
+    "Mon",
+    "Tue",
+    "Thu"
+   ],
+   "qualifies": true,
+   "sd_by_window": {
+    "1": 0.01575,
+    "2": 0.01482,
+    "5": 0.01005,
+    "10": 0.00815,
+    "30": 0.00588,
+    "60": 0.00587
+   },
+   "tolerance": 0.0315
+  },
+  "30-60": {
+   "eligible_hours_by_day": {
+    "Fri": 9,
+    "Sat": 0,
+    "Sun": 0,
+    "Mon": 5,
+    "Tue": 4,
+    "Thu": 4
+   },
+   "qualifying_days": [
+    "Fri",
+    "Mon",
+    "Tue",
+    "Thu"
+   ],
+   "qualifies": true,
+   "sd_by_window": {
+    "1": 0.00631,
+    "2": 0.00607,
+    "5": 0.00642,
+    "10": 0.00498,
+    "30": 0.00554,
+    "60": 0.00418
+   },
+   "tolerance": 0.0128
+  },
+  "60-120": {
+   "eligible_hours_by_day": {
+    "Fri": 1,
+    "Sat": 0,
+    "Sun": 0,
+    "Mon": 6,
+    "Tue": 7,
+    "Thu": 6
+   },
+   "qualifying_days": [
+    "Mon",
+    "Tue",
+    "Thu"
+   ],
+   "qualifies": true,
+   "sd_by_window": {
+    "1": 0.00327,
+    "2": 0.00221,
+    "5": 0.00219,
+    "10": 0.00181,
+    "30": 0.00146,
+    "60": 0.00078
+   },
+   "tolerance": 0.0065
+  }
+ },
+ "implementation_check_training_only": {
+  "expected_cycle1": {
+   "3-10": 0.0985,
+   "10-30": 0.0321,
+   "30-60": 0.0146,
+   "60-120": 0.0035
+  },
+  "reproduced": {
+   "3-10": 0.0985,
+   "10-30": 0.0321,
+   "30-60": 0.0146,
+   "60-120": 0.0035
+  }
+ }
+}

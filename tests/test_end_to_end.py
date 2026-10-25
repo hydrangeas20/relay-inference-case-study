@@ -14,10 +14,12 @@ import threading
 import time
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
 import uvicorn
 from fastapi import FastAPI
+from prometheus_client import Histogram
 
 from relay.config import Settings
 from relay.corpus.manifest import CorpusLock, LockedFile, write_lock
@@ -25,7 +27,7 @@ from relay.corpus.store import Corpus
 from relay.gateway.app import create_app
 from relay.loadgen.runner import run_trace
 from relay.traces.generate import GeneratorParams, build_header, generate
-from relay.traces.io import write_trace
+from relay.traces.io import read_trace, write_trace
 from tests.fakes import FakeConfig, create_fake_inference
 
 
@@ -53,6 +55,24 @@ def serve() -> Iterator[object]:
     yield start
     for server in servers:
         server.should_exit = True
+
+
+class _RecordingHistogram:
+    """Stands in for a labelled histogram: observes as usual and keeps every value."""
+
+    def __init__(self, hist: Histogram) -> None:
+        self.hist = hist
+        self.values: list[float] = []
+
+    def labels(self, *labels: str) -> Any:
+        child, values = self.hist.labels(*labels), self.values
+
+        class _Child:
+            def observe(self, value: float) -> None:
+                values.append(value)
+                child.observe(value)
+
+        return _Child()
 
 
 def _write_corpus(corpus: Corpus, root: Path) -> tuple[Path, Path, str]:
@@ -88,7 +108,10 @@ async def test_replay_is_valid_and_reconciles(
         corpus_lock=lock_path,
         corpus_dir=corpus_dir,
     )
-    gateway_url = start(create_app(settings))  # type: ignore[operator]
+    gateway_app = create_app(settings)
+    gateway_ttft = _RecordingHistogram(gateway_app.state.metrics.upstream_ttft)
+    gateway_app.state.metrics.upstream_ttft = gateway_ttft
+    gateway_url = start(gateway_app)  # type: ignore[operator]
     settings = settings.model_copy(update={"gateway_url": gateway_url})
 
     corpus = Corpus(small_corpus.files, corpus_sha)
@@ -112,4 +135,17 @@ async def test_replay_is_valid_and_reconciles(
     raw = list((tmp_path / "results" / "raw").glob("*.jsonl"))
     assert len(raw) == 1
     assert len(raw[0].read_text().splitlines()) == len(reqs)
-    assert json.loads(raw[0].read_text().splitlines()[0])["status"] == "ok"
+    first = json.loads(raw[0].read_text().splitlines()[0])
+    assert first["status"] == "ok"
+    assert first["prompt_chars"] > 0  # the gateway's built-size header was recorded
+    assert summary["trace"]["trace_id"] == read_trace(trace_path).header.trace_id
+
+    # The invariant reconciliation relies on: the client's TTFT interval contains the
+    # gateway's for every request, so the k-th fastest client TTFT is never below the
+    # k-th fastest gateway TTFT (the gateway exposes no request IDs to match on).
+    records = [json.loads(line) for line in raw[0].read_text().splitlines()]
+    client = sorted(r["ttft_s"] for r in records if r["ttft_s"] is not None)
+    gateway = sorted(gateway_ttft.values)
+    assert len(gateway) == len(client) == len(reqs)
+    gaps = [c - g for c, g in zip(client, gateway, strict=True)]
+    assert min(gaps) >= 0, f"client below gateway by {-min(gaps) * 1000:.2f} ms"

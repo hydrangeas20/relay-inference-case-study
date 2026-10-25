@@ -15,6 +15,21 @@ Every results file carries a `source` field:
 
 Charts and write-ups label the source wherever a number appears. A `sim` or `projection` number is never presented as a measurement.
 
+### Claim labels in documentation
+
+Every quantitative claim in the docs carries one of these labels (ADR-0005, D6):
+
+| Label | Meaning | Example |
+|---|---|---|
+| ASSUMED | A scenario input the project chose | 400K daily active users |
+| AZURE-DERIVED | A statistic computed from Azure's public trace | Median prompt 1,930 tokens |
+| CALCULATED | Arithmetic from other labelled values | 102.4M requests/day |
+| MEASURED | Observed by running Relay's own code or system | Built prompt sizes reported by the gateway |
+| SIMULATED | A property of synthetic traffic or a simulated queue | p99 wait in the queueing test |
+| PROJECTED | A value outside the range of the data it's based on | σ under the `trend` scenario at 2,400 rps |
+
+These are for claims in prose. The `source` field above tags result files, and maps onto them: `gpu`, `sim` and `floci` results are MEASURED on the respective system; `projection` results are PROJECTED or CALCULATED.
+
 ## 2. Quality claims come only from real models
 
 The simulator models latency and throughput, not output quality. Any claim that a change "didn't hurt quality" must be backed by an eval run on a real GPU with the real model, with results tagged `gpu`.

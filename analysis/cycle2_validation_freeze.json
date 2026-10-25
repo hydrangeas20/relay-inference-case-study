@@ -1,0 +1,176 @@
+{
+ "freeze": "Cycle 2 queue-validation system",
+ "frozen_on": "2026-10-05",
+ "authorised_by": "hydrangeas20 (2026-10-05)",
+ "amendment": "docs/validation/phase-2-cycle-2-preregistration.md, Amendment 1 (commit c24bed3aaba675f201c02adbe380dd24b3a94ce2)",
+ "rule": {
+  "implementation": "analysis/cycle2_validation.py (validate, fold_result, rule)",
+  "equivalence_bound_B": 1.4,
+  "equivalence_interval": "1/B <= G <= B, inclusive, for each of the 8 cell-and-percentile combinations",
+  "aggregate_ratio_G": "exp(mean over informative hours of log(candidate median / Azure)); informative = neither value near zero; G = 1 if no hour is informative",
+  "cells": [
+   [
+    0.2,
+    0.6
+   ],
+   [
+    0.2,
+    0.8
+   ],
+   [
+    1.0,
+    0.6
+   ],
+   [
+    1.0,
+    0.8
+   ]
+  ],
+  "metrics": [
+   "p95",
+   "p99"
+  ],
+  "hours_per_fold": 24,
+  "seeds_per_cell": 20,
+  "near_zero": "value < 0.01 * service time (frozen Cycle 1 definition)",
+  "gating_folds": {
+   "2024-05-10": "Fri",
+   "2024-05-13": "Mon",
+   "2024-05-14": "Tue",
+   "2024-05-16": "Thu"
+  },
+  "folds_required": 3,
+  "fold_pass": "C1' and criterion 3 and near-zero cap",
+  "safety_rule_C2prime": {
+   "bounds": [
+    0.5,
+    2.0
+   ],
+   "definition": "a gating fold violates C2' if any of its 8 G lies outside [0.5, 2.0] (inclusive); any violation fails the rule"
+  },
+  "nearzero_cap": {
+   "max_fraction": 0.1,
+   "definition": "hours where exactly one of candidate and Azure is near zero, as a fraction of the fold's hour x cell x percentile values"
+  },
+  "criterion_3": {
+   "version": "Cycle 1 Amendment 2, A2.3 (clarified), unchanged",
+   "rule": "clarified",
+   "min_fraction_beating_poisson": 0.8,
+   "definition": "relay.traffic.queueing.judge_cell(..., 'clarified'); >= 80% of non-tie cells beat Poisson; >= 1 non-tie cell",
+   "source_sha256": "b6d931acf39791dc2b9c5a565a116cd8e741d6ba0e1c2fcfb4b5a4a5980e81cc",
+   "source_hash_method": "sha256 of inspect.getsource(judge) + inspect.getsource(judge_cell) + 'NEAR_ZERO=<repr>\\n'"
+  },
+  "rule": ">= 3 of the 4 gating folds pass, and no gating fold violates C2'",
+  "azure_vs_azure_bootstrap": "REPORT-ONLY: not a gate; cannot affect candidate acceptance or selection; not an input to the validation code",
+  "rejected": "Cycle 1 per-cell criteria 1 and 2 and the 0.25-4.0 per-cell catastrophic bound (miscalibrated under the perfect-model null); unreachable from the Cycle 2 validation path"
+ },
+ "measurement_resolution": "This validator does not establish close distributional equality or +/-10-15% queue fidelity. Under the 200-replicate perfect-model audit at B = 1.40: biases of about 1.15x are generally not detected (8-13% global); about 1.25x have limited power (44-46% global); about 1.30x global biases are detected 71-73% of the time; 1.50x global bias is detected essentially always (100%); a 1.50x bias confined to one cell-and-percentile is detected 63-100% of the time depending on the cell. A passing candidate must not be described as 'matching Azure'. The supported reading is: 'No queue-behavior discrepancy was detected at the resolution supported by the preregistered validation procedure.'",
+ "implementation_sha256": {
+  "analysis/cycle2_validation.py": "3c853c6c61ca706ef8f824b59c6bd2d35a98123b01e5b54998be56fd44e2940d",
+  "analysis/cycle2_data.py": "ca70523657138b40c0e8a95a745da8a3e5e3cdc13733c22ac5a65b4d5b48e46e",
+  "analysis/cycle2_cache_manifest.json": "3e709f672364828835161dead80fddb32c6cd9c40b5951f096b3ee6215e2655e"
+ },
+ "implementation_commit": "13de0977316f9c5c5a199901f6b6b1bf01838192 (adds analysis/cycle2_validation.py and its tests)",
+ "audit": {
+  "procedure": "docs/validation/phase-2-cycle-2-preregistration.md section 7; docs/validation/phase-2-cycle-2-criterion-audit.md sections 1-7",
+  "truth_processes": [
+   "cycle1_C1",
+   "bootstrap"
+  ],
+  "original": {
+   "replicates": 50,
+   "seed_entropy": 20261002
+  },
+  "expanded": {
+   "replicates": 200,
+   "seed_entropy": 20261003,
+   "bounds": [
+    1.25,
+    1.3,
+    1.35,
+    1.4
+   ],
+   "biases": [
+    1.15,
+    1.25,
+    1.3,
+    1.5
+   ],
+   "safety_bounds": [
+    0.5,
+    2.0
+   ],
+   "nearzero_cap": 0.1,
+   "pass_min": 0.8,
+   "ci": "Wilson score, 95%"
+  },
+  "seed_scheme": "numpy SeedSequence(entropy, spawn_key=(process, fold, hour, role, replicate)); model medians over 20 seeds",
+  "decision_rule": "smallest predeclared B whose 95% Wilson lower limit on the perfect-model 3-of-4 pass rate is >= 0.80 under both truth processes (written before the 200-replicate run)",
+  "selected": {
+   "B": 1.4,
+   "lower_limits": {
+    "cycle1_C1": 0.851,
+    "bootstrap": 0.811
+   }
+  },
+  "rejected_B_1_35": {
+   "lower_limits": {
+    "cycle1_C1": 0.755,
+    "bootstrap": 0.734
+   },
+   "bootstrap_point_estimate": 0.795
+  },
+  "code_sha256": {
+   "analysis/criterion_audit.py": "33eed62d208edccc78b01ecdb2115ab89f809db88755dd6d874ae9c06b4b9200",
+   "analysis/cycle2_operating.py": "7357fefbe4d1d1d949ee871bc5359e2f3b618e7da45308daf1e85302ed14d686",
+   "analysis/cycle2_null_aggregate.py": "a209ac8bde26da9b22f7b9cb2547ca3a390071abb9347601eb114f6f1812e143"
+  },
+  "config_sha256_at_freeze_informational": {
+   "analysis/cycle2_config.py": "342a530c5f1eb0112acec359e61adfcc47a7784dad9d49bf1c77cd7ab2ef025c",
+   "note": "not enforced: cycle2_config also holds later Cycle 2 settings (tolerances, calibration); the frozen rule's constants are in cycle2_validation.py, which is enforced"
+  },
+  "code_commits": {
+   "audit implementation": "e756c05",
+   "expanded audit predeclared": "24ec4d5"
+  },
+  "results_sha256": {
+   "analysis/results/cycle2/criterion-audit.json": "aa986fa58ad732a3c629d25335a8f045a5185b6fd98236303e77c6c7918faa30",
+   "analysis/results/cycle2/criterion-audit-aggregate.json": "317989a2cf438137042aa3da4115972f5bbb4227cc86c31621c7771f1232b417",
+   "analysis/results/cycle2/criterion-audit-200.json.gz": "6d6143d05a014e09ed612b2c721c8d61a6efec5abc06ec84a842941a6eaf2de0",
+   "analysis/results/cycle2/criterion-audit-200-operating.json": "60e872e33681e2cc6be1aed7dd7a0460f5667198ebf6ec2b2969c451ab9c3d6e"
+  },
+  "results_commits": {
+   "original results": "79805fd",
+   "null analysis": "bad4d9c",
+   "200-replicate results": "30b7a94",
+   "recommendation": "d8fa151"
+  }
+ },
+ "development_caches": {
+  "manifest": "analysis/cycle2_cache_manifest.json",
+  "files": {
+   "training.npz": {
+    "sha256": "1f0e15daa6b8bbbe0c2a1b2f8afbd92067fc684bca22157e3f80060947b92362",
+    "days": [
+     "2024-05-10",
+     "2024-05-11",
+     "2024-05-12",
+     "2024-05-13",
+     "2024-05-14"
+    ]
+   },
+   "validation.npz": {
+    "sha256": "47ea7ddf5691f42dda662cc1bbee5e75149fbec7c39ac065d9610a2069a4fde7",
+    "days": [
+     "2024-05-16"
+    ]
+   }
+  }
+ },
+ "statements": {
+  "no_candidate_evaluated_before_freeze": "No Cycle 2 candidate (D1, A1, A2, B2, B3 or any other) had been fitted, generated, simulated or evaluated before this freeze.",
+  "wednesday_unopened": "Wednesday (2024-05-15) and the raw trace remain unopened: Cycle 2 code reads only the two hash-verified development caches through the cache-only guard; the raw file's last access is 2026-09-28 16:09 -0400 (Cycle 1 cache build).",
+  "criteria_fixed": "These criteria are not altered because a candidate fails; any change needs a new dated amendment justified independently of candidate results and committed before the run it affects."
+ },
+ "identity_note": "This file pins content hashes (files and function sources), which don't depend on any commit. The commit that adds this file can't contain its own SHA; it is recorded afterwards in the Cycle 2 preregistration (Amendment 1, 'Freeze commit'), following git convention. tests/test_cycle2_freeze.py recomputes every hash here."
+}
