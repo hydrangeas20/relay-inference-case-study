@@ -102,6 +102,16 @@ The header is 60 characters, 43 tokens, of a prompt with a median of 1,780 token
 - independent-original-cache rep 1: send lag p99 24.3 ms exceeds 10 ms: requests left later than scheduled
 - independent-metadata-cache rep 2: send lag p99 12.4 ms exceeds 10 ms: requests left later than scheduled
 
+### Uncertainty
+
+The headline is reported with its run-to-run spread, not a confidence interval. The paired median ratio was 0.210, 0.223 and 0.220 in the three repetitions (run *k* of each arm paired with run *k* of the other).
+
+A bootstrap that resamples both runs (within each arm) and whole sessions gives 0.18–0.24 for the paired median. That's a rough bound, not an exact interval, for two reasons:
+- **Few runs.** With 3 runs per arm, the run level has only a handful of distinct resamples.
+- **Linked sessions.** Sessions ran back to back on one server, so queueing links neighbouring sessions.
+
+The figures are in [review/recompute-output.txt](review/recompute-output.txt).
+
 ### Predictions vs outcome
 
 | # | Prediction | Outcome | Verdict |
@@ -109,8 +119,8 @@ The header is 60 characters, 43 tokens, of a prompt with a median of 1,780 token
 | P1 | Original template: cache share < 2% | 0.5% | Held |
 | P2 | Fixed template, sessions: cache share > 60% | 82.9% | Held |
 | P3 | Median TTFT ratio < 0.5; follow-ups < 0.3 | 0.22; follow-ups 0.21 | Held |
-| P4 | Original + cache ≈ fixed, no cache (ratio 0.9–1.1; falsified outside 0.8–1.25) | Planned runs: 1.117 (1 valid cache-off run). With the 2 post hoc runs: 1.091 (95% CI 1.07–1.14) | **Missed the predicted band** on the planned runs; not falsified |
-| P5 | Fixed template without cache gives no gain over original (falsified if ratio < 0.9) | Planned runs: **0.895**. With the 2 post hoc runs: 0.917 (95% CI 0.88–0.94) | **Falsified on the planned runs.** The post hoc value passes, but its CI still reaches below 0.9, so it doesn't rescue P5 |
+| P4 | Original + cache ≈ fixed, no cache (ratio 0.9–1.1; falsified outside 0.8–1.25) | Planned runs: 1.117 (1 valid cache-off run). With the 2 post hoc runs: 1.091 (per-run 1.085–1.114) | **Missed the predicted band** on the planned runs; not falsified |
+| P5 | Fixed template without cache gives no gain over original (falsified if ratio < 0.9) | Planned runs: **0.895**. With the 2 post hoc runs: 0.917 (per-run 0.898–0.922) | **Falsified on the planned runs.** The post hoc value passes, but it rests on runs added after the falsifying result was seen, so it doesn't rescue P5 |
 | P6 | Negative control: ratio ≥ 0.85 | 0.90 | Held |
 
 **Not predicted:** with the original template, turning the cache **on** was about 9% slower than the cache-off control, and only 12% of requests were faster. The header's 43 extra tokens (2.4% of the prompt) explain part of it. The rest shows up as a 6% higher prefill cost per token in that condition (1.149 vs 1.080 ms/token, server-reported). The cause wasn't tested: cache bookkeeping, attention cost over longer prompts and between-run noise all remain possible. Either way, the customer's report holds: turning caching on didn't help.

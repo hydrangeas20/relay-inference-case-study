@@ -1,7 +1,8 @@
 # ADR-0007: A real engine on CPU for RLY-4, and how Relay's request header leaves the prompt
 
-- **Status:** Proposed. Implemented in the RLY-4 PR for the engineer's review; the decisions below are open to reversal before merge.
+- **Status:** Accepted
 - **Date:** 2026-10-25
+- **Decided by:** hydrangeas20, 2026-10-25, after the PR #3 independent review. The decisions accepted: the `cpu` source tag (1); request metadata outside the model prompt, provided its required functionality is preserved (3); the 10 ms send-lag limit for RLY-4 experiments only, with functional CI testing correctness independently of it (5). The model (2) and workload (4) stand as implemented.
 
 ## Context
 
@@ -41,6 +42,9 @@ A simulator result for RLY-4 would only show the simulator's latency model. It w
 - **What changes:** the header leaves the prompt. The gateway sends the request ID upstream as `X-Request-Id` instead.
 - **Why not move the header to the end** (the ticket's first suggestion): an inline-completion prompt ends at the user's cursor. Text appended after the code would sit between the code and the completion the model is asked to write.
 - **The baseline stays:** `PROMPT_TEMPLATE=original` remains the default and is byte-for-byte Relay's template.
+- **Functionality preserved:**
+    - **Request ID:** nothing in Relay's code reads the request ID or timestamp from the prompt. The ID still reaches the inference server as `X-Request-Id` in both template variants, and `tests/test_rly4.py` checks it.
+    - **Timestamp:** it isn't forwarded, because no component consumes it. If a downstream consumer ever needs it, it belongs in a request header like the ID, never in the prompt.
 
 ### 4. Workload: editing sessions
 
@@ -51,11 +55,13 @@ A simulator result for RLY-4 would only show the simulator's latency model. It w
 
 - **Fresh server per run,** so no run inherits a warm cache.
 - **CPU pinning:** the server runs on one core, and the gateway and load generator on the other.
-- **Send-lag gate:** every run must pass the load generator's self-check, including the new send-lag p99 limit of 10 ms. Runs that fail are kept on disk and excluded from results.
+- **Send-lag gate, RLY-4 only:** every RLY-4 run must pass the load generator's self-check, including a send-lag p99 limit of 10 ms. The runner sets it with `LOADGEN_SEND_LAG_P99_LIMIT_MS=10`. Runs that fail are kept on disk and excluded from results.
+    - **Other experiments:** each declares its own limit before it runs. With none set, send lag is reported but doesn't decide validity.
+    - **Functional CI:** tests correctness and doesn't apply this limit.
 
 ## Consequences
 
 - **Scope of the evidence.** RLY-4's result is evidence about the mechanism on a real engine. It isn't a GPU latency claim, and it isn't a capacity or cost claim.
-- **On a GPU:** prefill is faster, so absolute savings are smaller in milliseconds. The fraction of prefill skipped is the same. That fraction needs re-measuring on vLLM before it goes into the capacity plan.
+- **On a GPU:** prefill is faster, so absolute savings are smaller in milliseconds. The fraction of prefill skipped may differ too: vLLM caches whole fixed-size blocks, evicts under memory pressure, and the real model has its own tokenizer. It needs re-measuring on vLLM before it goes into the capacity plan.
 - **One server, one slot.** The experiment doesn't model many users competing for cache space, eviction, or routing across replicas. Those are separate questions; prefix-aware routing is one.
 - **Reproducing it** needs a llama.cpp checkout to build the server and the model. Neither is committed: the model is about 350 MB, and the binary depends on the platform.

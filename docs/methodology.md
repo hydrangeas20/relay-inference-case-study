@@ -10,7 +10,7 @@ Every results file carries a `source` field:
 |---|---|
 | `gpu` | Measured on a real GPU running the real model |
 | `cpu` | Measured on a real inference engine running on CPU (ADR-0007). Real caching and scheduling behaviour; not GPU latency. With RLY-4's synthetic-weight model, no quality signal |
-| `sim` | Measured against the calibrated simulator |
+| `sim` | Measured against the simulator. Its latencies are placeholders until it's calibrated (rule 3), so `sim` numbers show plumbing, not performance |
 | `projection` | Computed from a capacity model (e.g. Vidur, or arithmetic from measured per-GPU capacity) |
 | `floci` | Measured on the emulated AWS plumbing, with no inference in the path |
 
@@ -44,7 +44,7 @@ The simulator's latency parameters are fitted to real GPU measurements (Phase 3)
 A slow client makes a fast server look slow. Every load test run must:
 
 - **Be open-loop.** Requests are sent on a schedule (e.g. Poisson arrivals at the target rate) regardless of whether earlier ones have completed. Closed-loop generators hide overload instead of revealing it.
-- **Self-check.** Log the generator's intended vs. achieved send rate, each request's send lag (actual minus scheduled send time) and the generator's CPU usage. The run is **invalid** if achieved rate falls more than 2% short of intended, if send-lag p99 exceeds 10 ms, or if the generator's CPU is saturated. Invalid runs are kept and reported as invalid, never used as results. The send-lag rule exists because the rate check compares averages: a generator that falls behind during a burst and catches up afterwards passes it while delaying exactly the requests that form the tail.
+- **Self-check.** Log the generator's intended vs. achieved send rate, each request's send lag (actual minus scheduled send time) and the generator's CPU usage. The run is **invalid** if achieved rate falls more than 2% short of intended, or if the generator's CPU is saturated. An experiment may also set a send-lag p99 limit before it runs (`LOADGEN_SEND_LAG_P99_LIMIT_MS`); RLY-4 uses 10 ms (ADR-0007). With no limit set, send lag is reported but doesn't decide validity. Functional CI tests check correctness and don't apply any experiment's limit. Invalid runs are kept and reported as invalid, never used as results. The send-lag rule exists because the rate check compares averages: a generator that falls behind during a burst and catches up afterwards passes it while delaying exactly the requests that form the tail.
 - **Scale out when needed.** High-volume simulator runs use several generator processes.
 
 ### What TTFT measures, layer by layer

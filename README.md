@@ -10,7 +10,7 @@ A forward-deployed engineering engagement with a fictional customer, run like a 
 
 > **Moving one line of per-request metadata out of the prompt let the prefix cache serve 83% of prompt tokens instead of 0.5%. On the same requests, median time to first token fell 3.9x (2.52 s → 0.65 s) and p95 fell 2.9x.**
 >
-> Measured on a real inference engine (llama.cpp) running on CPU, 3 repetitions, the same replayed trace in every run. Source `cpu`: these are not GPU or vLLM latencies. "3.9x" is the ratio of median TTFT (median of the per-run p50s); per request, the paired median ratio is 0.22 (95% CI 0.19–0.23, resampling sessions). The milliseconds don't carry over to a GPU. The cache share probably won't carry over unchanged either: vLLM caches whole fixed-size token blocks, evicts under memory pressure, and Relay's real model has its own tokenizer, so it has to be re-measured there.
+> Measured on a real inference engine (llama.cpp) running on CPU, 3 repetitions, the same replayed trace in every run. Source `cpu`: these are not GPU or vLLM latencies. "3.9x" is the ratio of median TTFT (median of the per-run p50s); per request, the paired median ratio is 0.22, and 0.21–0.22 in each of the 3 repetitions. The milliseconds don't carry over to a GPU. The cache share probably won't carry over unchanged either: vLLM caches whole fixed-size token blocks, evicts under memory pressure, and Relay's real model has its own tokenizer, so it has to be re-measured there.
 
 **The bug:** Relay's template puts `[relay request_id=… ts=…]` at the top of every prompt. A prefix cache reuses tokens only up to the first difference, so the header made every prompt unique within its first 10 tokens. Relay turned caching on, and nothing changed.
 
@@ -19,7 +19,7 @@ A forward-deployed engineering engagement with a fictional customer, run like a 
 **The controls:**
 - **Cache on vs off:** with the original template, cache on was no faster than cache off.
 - **No repeated context:** when context doesn't repeat, the fix gains only about 10%.
-- **Predictions first:** predictions and falsification thresholds were committed before results were read, Four held cleanly (P1, P2, P3, P6). The two control predictions did not: P5 was falsified on the planned runs, and P4 missed its predicted band. Two extra control runs, added after that result was seen, moved both back inside their bands; they're reported as post hoc. With the original template, cache on was about 9% *slower* than cache off. The header's 43 extra tokens explain about a quarter of that; the rest is unexplained. See [the RLY-4 write-up](tickets/rly-4-prefix-caching/).
+- **Predictions first:** predictions and falsification thresholds were committed before any full run was read (a disclosed 6-request pilot informed them). Four held cleanly (P1, P2, P3, P6). The two control predictions did not: P5 was falsified on the planned runs, and P4 missed its predicted band. Two extra control runs, added after that result was seen, moved both back inside their bands; they're reported as post hoc. With the original template, cache on was about 9% *slower* than cache off. The header's 43 extra tokens explain about a quarter of that; the rest is unexplained. See [the RLY-4 write-up](tickets/rly-4-prefix-caching/).
 
 ---
 
@@ -27,8 +27,8 @@ A forward-deployed engineering engagement with a fictional customer, run like a 
 
 | Area | State | Evidence |
 | --- | --- | --- |
-| Gateway, open-loop load generator, indexing worker | Implemented | 277 tests pass (3 skipped). Run end to end over real sockets against llama.cpp and an AWS API emulator (`scripts/verify_local_stack.sh`, results in `results/phase1-verification/`) |
-| Run validity and provenance | Implemented | Self-check (rate, send-lag p99, generator CPU), 3-layer TTFT reconciliation, a manifest in every summary |
+| Gateway, open-loop load generator, indexing worker | Implemented | 284 tests pass, 3 skipped (`make check`). Run end to end over real sockets against llama.cpp and an AWS API emulator (`scripts/verify_local_stack.sh`, results in `results/phase1-verification/`) |
+| Run validity and provenance | Implemented | Self-check (send rate, generator CPU, and a send-lag p99 limit each experiment sets: 10 ms for RLY-4), TTFT reconciliation across layers, a manifest in every summary |
 | RLY-4 prefix caching | **Measured on CPU** (`cpu`) | 15 runs plus 2 extra control runs, raw records committed: [`results/rly-4/`](results/rly-4/) |
 | Docker Compose stack (simulator, Floci, Prometheus, Grafana) | Implemented; **smoke-tested end to end in CI** (`sim`) | [Stack smoke workflow](.github/workflows/stack.yml) |
 | Traffic model (Phase 2) | Implemented, **not validated out of sample** | [Traffic model status](#traffic-model-status) |
@@ -78,7 +78,7 @@ The tickets are deliberately coupled. For example, the quantization win in RLY-3
 
 ## What's real, what's simulated, what's emulated
 
-Every result carries a `source` tag, and every number in this README is labelled with one.
+Every result file carries a `source` tag. All RLY-4 numbers in this README are `cpu`; the Docker smoke test is `sim`.
 
 | Source | What runs | Used for | What it can prove |
 | --- | --- | --- | --- |
@@ -132,8 +132,8 @@ flowchart LR
     GW -. "/metrics, /info" .-> RES
 ```
 
-- **Measured at three layers.** The load generator measures TTFT at the client, the gateway measures it upstream, and the server reports its own. A run checks that the layers are consistent.
-- **Self-checking.** A run is marked invalid if the generator fell behind its schedule.
+- **Measured at up to three layers.** The load generator measures TTFT at the client, the gateway measures it upstream, and vLLM-style servers report their own histogram. A run checks that the layers are consistent. llama.cpp exports no TTFT histogram, so RLY-4 reconciles the client and gateway layers only.
+- **Self-checking.** A run is marked invalid if the generator's send rate fell short, its CPU saturated, or (when the experiment sets a limit) its send lag exceeded that limit.
 - **Run manifest.** Every summary records the commit, the environment, the gateway's actual template setting, and the inference server's build and model hash.
 
 Details: [`docs/architecture.md`](docs/architecture.md).
@@ -157,9 +157,9 @@ make check   # ruff, mypy --strict, pytest
 make up && make run   # replays traces/smoke.jsonl; results land in results/
 ```
 
-**Verified in CI.** The [Stack smoke workflow](.github/workflows/stack.yml) starts the full stack on a clean GitHub runner and replays the smoke trace through it. It first passed on PR #3. Without Docker, `LLAMA_SERVER=… scripts/verify_local_stack.sh` runs the gateway, the worker and the load generator over real sockets, against llama.cpp and an AWS API emulator.
+**Verified in CI.** The [Stack smoke workflow](.github/workflows/stack.yml) starts the full stack on a clean GitHub runner and replays the smoke trace through it. It first passed on PR #3. Without Docker, `LLAMA_SERVER=… scripts/verify_local_stack.sh` (after `make rly4-model`) runs the gateway, the worker and the load generator over real sockets, against llama.cpp and an AWS API emulator.
 
-**Reproduce RLY-4** (real engine, CPU only, about an hour on 2 cores). Details are in [the ticket](tickets/rly-4-prefix-caching/).
+**Reproduce RLY-4** (real engine, CPU only, Linux with `taskset`, about an hour on 2 cores; run `make setup` first). Details are in [the ticket](tickets/rly-4-prefix-caching/).
 
 ```bash
 git clone https://github.com/ggml-org/llama.cpp ../llama.cpp      # beside this repo, not inside it
@@ -187,7 +187,7 @@ make rly4-report                                             # results/rly-4/rep
 | Arrivals | Open-loop Poisson at 0.25 requests/s. The identical trace file is replayed in every run |
 | Changed | One factor at a time: the gateway template (`original` / `metadata`) and the server prompt cache (on / off) |
 | Negative control | The same arrival times and cursor positions, but no file repeats, so there's no shared context to reuse |
-| Validity | Runs failing the load generator's self-check are excluded and listed. Every number below is generated from the committed results by [`analyze.py`](tickets/rly-4-prefix-caching/analyze.py) |
+| Validity | Runs failing the load generator's self-check (including RLY-4's 10 ms send-lag limit) are excluded and listed. The tables below are generated from the committed results by [`analyze.py`](tickets/rly-4-prefix-caching/analyze.py); the mechanism figures come from the review's independent [`recompute.py`](tickets/rly-4-prefix-caching/review/recompute.py) |
 
 Median across valid runs (min–max). TTFT and E2E are client-measured, in ms, source `cpu`. Cache share comes from the server's own counters.
 
@@ -208,11 +208,13 @@ Median across valid runs (min–max). TTFT and E2E are client-measured, in ms, s
 | Did turning the cache on do anything with the original template? | 48 | 1.09 (0.99–1.34) | 12% | 1.08 |
 | Does the fix help when context doesn't repeat? (negative control) | 48 | 0.90 (0.78–1.02) | 83% | 0.90 |
 
-**Excluded runs.** Four of 17 runs failed the send-lag self-check (p99 12–24 ms against a 10 ms limit). They're kept on disk and listed in [report.md](results/rly-4/report.md). The cache-off control got two extra runs (17 runs in total). They were added after the analysis had been read and are post hoc; the [review](tickets/rly-4-prefix-caching/review/) reports every result with and without them.
+**Excluded runs.** Four of 17 runs failed the send-lag self-check (p99 12–24 ms against a 10 ms limit). They're kept on disk and listed in [report.md](results/rly-4/report.md).
+
+**Post hoc runs.** The cache-off row and the "did turning the cache on do anything" comparison include two extra cache-off runs, added after the analysis had been read. On the planned runs alone (one valid cache-off run), that comparison is 1.117, and the cache-off p50 is 2,281 ms. The [review](tickets/rly-4-prefix-caching/review/) reports every result with and without them.
 
 **Mechanism:**
 - **Follow-ups:** with the fix, a follow-up request evaluates a median of 40 tokens (22–135), and its median TTFT ratio is 0.21. Server-side prefill time, which excludes queueing, fell to 0.24 of the original per request.
-- **First requests:** the first request of a session still prefills the whole file. It gains only from shorter queues (median ratio 0.71).
+- **First requests:** the first request of a session still prefills the whole file. It can reuse only the system prompt, so its gain (median ratio 0.71) comes mostly from shorter queues.
 - **Server load:** server busy time on the same 48 requests fell from 52% to 21.5%.
 
 **Limits:**

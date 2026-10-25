@@ -7,12 +7,13 @@
 | Load generator | Python, `asyncio` + `httpx` | Replays pre-generated trace files open-loop; records per-request timings; self-checks and reconciles against server metrics |
 | Gateway | Python, FastAPI | Relay's interactive API (`/v1/complete`, `/v1/agent`); builds prompts from Relay's templates and streams responses through; exposes metrics |
 | Worker | Python, `boto3` | Pulls indexing jobs from SQS, calls the embedding endpoint, writes to DynamoDB |
-| Inference: real | vLLM on a rented GPU | Ground-truth performance and all quality evals |
-| Inference: simulated | llm-d-inference-sim | OpenAI-compatible stand-in, calibrated to real measurements, for scale tests |
+| Inference: real, GPU | vLLM on a rented GPU (planned; no `gpu` result yet) | Ground-truth performance and all quality evals |
+| Inference: real, CPU | llama.cpp `llama-server` (ADR-0007) | Engine mechanisms such as prefix caching (RLY-4, source `cpu`) |
+| Inference: simulated | llm-d-inference-sim | OpenAI-compatible stand-in for plumbing and scale tests. Its latencies are placeholders until Phase 3 calibrates them against real measurements |
 | Customer AWS | Floci | Emulated S3, SQS, DynamoDB at `localhost:4566` |
 | Metrics | Prometheus + Grafana | Live operational dashboard |
 | Code corpus | git + pinned commits | Real source code from permissively licensed repos, used to build prompts (`corpus/`) |
-| Reporting | Python + Plotly | Generates the case study site from `results/` |
+| Reporting | Python | `tickets/*/analyze.py` builds reports from `results/`; the case study site (Plotly) is planned |
 
 ## Key design decisions
 
