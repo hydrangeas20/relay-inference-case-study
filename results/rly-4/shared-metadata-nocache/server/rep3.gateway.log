@@ -1,0 +1,61 @@
+warning: The `UV_NATIVE_TLS` environment variable is deprecated and will be removed in a future release. Use `UV_SYSTEM_CERTS` instead.
+INFO:     Started server process [7150]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8080 (Press CTRL+C to quit)
+INFO:     127.0.0.1:55078 - "GET /healthz HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55052 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55052 - "GET /info HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44938 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44942 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52328 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52342 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52328 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52328 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52328 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52328 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52328 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52328 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52328 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52328 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50564 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52328 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34032 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34032 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34032 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47910 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47926 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44150 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56018 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56028 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56018 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56018 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46006 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46008 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46006 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46008 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40432 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46006 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40448 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59910 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59916 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59910 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59916 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59910 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52142 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:34094 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40956 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40966 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40968 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40956 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40966 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40968 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40956 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40956 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40956 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40956 - "POST /v1/complete HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40956 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [7150]

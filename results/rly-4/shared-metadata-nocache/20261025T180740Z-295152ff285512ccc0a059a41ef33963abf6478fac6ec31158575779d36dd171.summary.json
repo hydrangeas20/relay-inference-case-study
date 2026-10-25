@@ -1,0 +1,224 @@
+{
+  "schema": "phase1-provisional",
+  "run_id": "20261025T180740Z-295152ff285512ccc0a059a41ef33963abf6478fac6ec31158575779d36dd171",
+  "created_at": "2026-10-25T18:07:40+00:00",
+  "source": "cpu",
+  "trace": {
+    "path": "traces/rly4-shared.jsonl",
+    "file_sha256": "d1be516ee47b377f90991384322278fe93754116f889890e7425797bd121cde8",
+    "format_version": 3,
+    "trace_id": "295152ff285512ccc0a059a41ef33963abf6478fac6ec31158575779d36dd171",
+    "spec_id": "11ce44ccf5fdaa2d70be585ef6d7487fad371305d25b88151bb4b6d3445ed5be",
+    "generator_sha256": "43d93ae57bbda7ae94b820811f6db4180719a7318160f79ea69eb7a788c985ba"
+  },
+  "corpus_sha256": "048fbcba30e66e0dd51639b53cfb7497333f874175adbc03ae0d756cb1dbf3d4",
+  "valid": true,
+  "self_check": {
+    "valid": true,
+    "reasons": [],
+    "intended_rate_rps": 0.21078766700376098,
+    "achieved_rate_rps": 0.21078743614959283,
+    "rate_shortfall": 1.09519770019606e-06,
+    "cpu_pct": {
+      "p50": 0.0,
+      "p95": 2.0,
+      "p99": 2.0
+    },
+    "send_lag_s": {
+      "p50": 0.0011069115000026386,
+      "p95": 0.001992707999978904,
+      "p99": 0.0023517317100179014
+    }
+  },
+  "workloads": {
+    "completion": {
+      "sent": 48,
+      "ok": 48,
+      "errors": {},
+      "ttft_s": {
+        "p50": 2.281300379500067,
+        "p95": 5.3118598561000105,
+        "p99": 6.212725831430081
+      },
+      "e2e_s": {
+        "p50": 2.6201748635000968,
+        "p95": 5.635090060900017,
+        "p99": 6.52891048850017
+      },
+      "server_timings": {
+        "requests_with_timings": 48,
+        "prompt_tokens_cached": 0.0,
+        "prompt_tokens_evaluated": 87178.0,
+        "cached_fraction": 0.0,
+        "prompt_ms": {
+          "p50": 1920.277,
+          "p95": 2688.35485,
+          "p99": 2888.04261
+        }
+      }
+    }
+  },
+  "reconciliation": {
+    "status": "consistent",
+    "layers": [
+      {
+        "name": "gateway",
+        "count": 48.0,
+        "quantiles": {
+          "p50": 2.473684210526316,
+          "p95": 5.99999999999999,
+          "p99": 9.199999999999992
+        },
+        "resolution_s": {
+          "p50": 1.0,
+          "p95": 5.0,
+          "p99": 5.0
+        }
+      },
+      {
+        "name": "client",
+        "count": 48.0,
+        "quantiles": {
+          "p50": 2.281300379500067,
+          "p95": 5.3118598561000105,
+          "p99": 6.212725831430081
+        },
+        "resolution_s": {
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0
+        }
+      }
+    ],
+    "problems": [],
+    "notes": []
+  },
+  "manifest": {
+    "git": {
+      "commit": "0a88c798b9482b86156c5d26a1341209838d5f57",
+      "branch": "rly-4-prefix-cache-experiment",
+      "dirty": false
+    },
+    "environment": {
+      "python": "3.11.17",
+      "platform": "Linux-6.18.44-fc-v153-x86_64-with-glibc2.39",
+      "cpu_model": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+      "logical_cpus": 2,
+      "mem_total_gb": 7.8,
+      "packages": {
+        "relay": "0.1.0",
+        "fastapi": "0.141.1",
+        "httpx": "0.28.1",
+        "uvicorn": "0.54.0",
+        "numpy": "2.4.6",
+        "pydantic": "2.13.5",
+        "boto3": "1.43.103"
+      }
+    },
+    "gateway": {
+      "prompt_template": "metadata",
+      "completion_model": "relay/code-7b",
+      "inference_base_url": "http://127.0.0.1:8081/v1"
+    },
+    "inference_server": {
+      "base_url": "http://127.0.0.1:8081/v1",
+      "models": {
+        "models": [
+          {
+            "name": "models/relay-rly4-qwen2-synthetic.gguf",
+            "model": "models/relay-rly4-qwen2-synthetic.gguf",
+            "modified_at": "",
+            "size": "",
+            "digest": "",
+            "type": "model",
+            "description": "",
+            "tags": [
+              ""
+            ],
+            "capabilities": [
+              "completion"
+            ],
+            "parameters": "",
+            "details": {
+              "parent_model": "",
+              "format": "gguf",
+              "family": "",
+              "families": [
+                ""
+              ],
+              "parameter_size": "",
+              "quantization_level": ""
+            }
+          }
+        ],
+        "object": "list",
+        "data": [
+          {
+            "id": "models/relay-rly4-qwen2-synthetic.gguf",
+            "aliases": [
+              "models/relay-rly4-qwen2-synthetic.gguf"
+            ],
+            "tags": [],
+            "object": "model",
+            "architecture": {
+              "input_modalities": [
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            },
+            "created": 1792951418,
+            "owned_by": "llamacpp",
+            "meta": {
+              "vocab_type": 2,
+              "n_vocab": 151936,
+              "n_ctx": 4096,
+              "n_ctx_train": 32768,
+              "n_embd": 512,
+              "n_params": 179714560,
+              "size": 359458816,
+              "ftype": "F16"
+            }
+          }
+        ]
+      },
+      "engine": "llama.cpp",
+      "llama_cpp": {
+        "build_info": "b1-2280f0f",
+        "model_path": "models/relay-rly4-qwen2-synthetic.gguf",
+        "model_sha256": "4ecee8530f06ca472034d4640b8436722813a7e76be7fe0562fdfe585eb0b914",
+        "total_slots": 1,
+        "n_ctx": 4096
+      }
+    },
+    "trace_header": {
+      "format_version": 3,
+      "trace_id": "295152ff285512ccc0a059a41ef33963abf6478fac6ec31158575779d36dd171",
+      "seed": 4,
+      "duration_s": 238.168504,
+      "n_requests": 48,
+      "corpus_sha256": "048fbcba30e66e0dd51639b53cfb7497333f874175adbc03ae0d756cb1dbf3d4",
+      "generator": "sessions-v1",
+      "params": {
+        "n_sessions": 8,
+        "per_session": 6,
+        "rate_rps": 0.25,
+        "seed": 4,
+        "shared": true,
+        "first_cursor_chars": 6000,
+        "step_chars": [
+          80,
+          240
+        ],
+        "max_tokens": 8
+      },
+      "kind": "sessions",
+      "start_utc_s": 0.0,
+      "scale": null,
+      "traffic_model_sha256": null,
+      "spec_id": "11ce44ccf5fdaa2d70be585ef6d7487fad371305d25b88151bb4b6d3445ed5be",
+      "generator_sha256": "43d93ae57bbda7ae94b820811f6db4180719a7318160f79ea69eb7a788c985ba"
+    }
+  }
+}

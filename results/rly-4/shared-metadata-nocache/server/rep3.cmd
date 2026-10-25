@@ -1,0 +1,1 @@
+taskset -c 0 /tmp/claude-0/-home-claude/10cde502-a53e-5e9a-920e-0d7506eb7ec1/scratchpad/ext/llama.cpp/build/bin/llama-server -m models/relay-rly4-qwen2-synthetic.gguf --host 127.0.0.1 --port 8081 -c 4096 -np 1 -t 1 -tb 1 --metrics --no-cache-prompt
