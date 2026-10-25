@@ -1,0 +1,885 @@
+{
+  "configs": {
+    "shared-original-cache": {
+      "aggregate": {
+        "runs": 3,
+        "valid_runs": 3,
+        "ttft_p50_s": {
+          "median": 2.5240445970000565,
+          "min": 2.5138460020000366,
+          "max": 2.6711862740000356
+        },
+        "ttft_p95_s": {
+          "median": 5.798623924049821,
+          "min": 5.752311435899998,
+          "max": 5.963904704899869
+        },
+        "ttft_p99_s": {
+          "median": 7.473175418830098,
+          "min": 7.443487704860046,
+          "max": 7.656527279200006
+        },
+        "e2e_p50_s": {
+          "median": 2.873234692999972,
+          "min": 2.86167019100003,
+          "max": 3.0008145269999886
+        },
+        "cached_fraction": {
+          "median": 0.005031263306514869,
+          "min": 0.005031263306514869,
+          "max": 0.005031263306514869
+        },
+        "server_prompt_ms_p50": {
+          "median": 2013.366,
+          "min": 1997.0805,
+          "max": 2044.7649999999999
+        },
+        "server_busy_fraction": {
+          "median": 0.5243177832395809,
+          "min": 0.5229658607748913,
+          "max": 0.527428046104307
+        },
+        "errors": 0
+      },
+      "runs": [
+        {
+          "rep": 1,
+          "run_id": "20261025T175931Z-295152ff285512ccc0a059a41ef33963abf6478fac6ec31158575779d36dd171",
+          "valid": true,
+          "invalid_reasons": [],
+          "reconciliation": "consistent",
+          "commit": "f77a741a8971a6b0d4f32f914e1da0db7b5f1eea",
+          "dirty": false,
+          "template": "original",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 2.6711862740000356,
+            "p95": 5.752311435899998,
+            "p99": 7.443487704860046
+          },
+          "e2e_s": {
+            "p50": 3.0008145269999886,
+            "p95": 6.09968423754999,
+            "p99": 7.753692454620047
+          },
+          "send_lag_p99_ms": 5.270441869955254,
+          "server_cached_fraction_timings": 0.005031263306514869,
+          "server_prompt_ms_p50": 1997.0805,
+          "server_tokens_evaluated_metrics": 88793.0,
+          "server_tokens_cached_metrics": 449.0,
+          "server_cached_fraction_metrics": 0.005031263306514869,
+          "server_busy_fraction": 0.5229658607748913,
+          "achieved_rps": 0.21277821433683738
+        },
+        {
+          "rep": 2,
+          "run_id": "20261025T181955Z-295152ff285512ccc0a059a41ef33963abf6478fac6ec31158575779d36dd171",
+          "valid": true,
+          "invalid_reasons": [],
+          "reconciliation": "consistent",
+          "commit": "0a88c798b9482b86156c5d26a1341209838d5f57",
+          "dirty": false,
+          "template": "original",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 2.5138460020000366,
+            "p95": 5.963904704899869,
+            "p99": 7.656527279200006
+          },
+          "e2e_s": {
+            "p50": 2.873234692999972,
+            "p95": 6.273414323750125,
+            "p99": 8.002236776670122
+          },
+          "send_lag_p99_ms": 6.382844300260339,
+          "server_cached_fraction_timings": 0.005031263306514869,
+          "server_prompt_ms_p50": 2013.366,
+          "server_tokens_evaluated_metrics": 88793.0,
+          "server_tokens_cached_metrics": 449.0,
+          "server_cached_fraction_metrics": 0.005031263306514869,
+          "server_busy_fraction": 0.527428046104307,
+          "achieved_rps": 0.21265769140265445
+        },
+        {
+          "rep": 3,
+          "run_id": "20261025T184018Z-295152ff285512ccc0a059a41ef33963abf6478fac6ec31158575779d36dd171",
+          "valid": true,
+          "invalid_reasons": [],
+          "reconciliation": "consistent",
+          "commit": "0a88c798b9482b86156c5d26a1341209838d5f57",
+          "dirty": false,
+          "template": "original",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 2.5240445970000565,
+            "p95": 5.798623924049821,
+            "p99": 7.473175418830098
+          },
+          "e2e_s": {
+            "p50": 2.86167019100003,
+            "p95": 6.128604619149906,
+            "p99": 7.781437849820292
+          },
+          "send_lag_p99_ms": 2.835219450053046,
+          "server_cached_fraction_timings": 0.005031263306514869,
+          "server_prompt_ms_p50": 2044.7649999999999,
+          "server_tokens_evaluated_metrics": 88793.0,
+          "server_tokens_cached_metrics": 449.0,
+          "server_cached_fraction_metrics": 0.005031263306514869,
+          "server_busy_fraction": 0.5243177832395809,
+          "achieved_rps": 0.2127739367759602
+        }
+      ]
+    },
+    "shared-metadata-cache": {
+      "aggregate": {
+        "runs": 3,
+        "valid_runs": 3,
+        "ttft_p50_s": {
+          "median": 0.6539176449998649,
+          "min": 0.6216858074999436,
+          "max": 0.6855762765001145
+        },
+        "ttft_p95_s": {
+          "median": 2.0133809473500373,
+          "min": 1.9875911978000655,
+          "max": 2.0959002337999433
+        },
+        "ttft_p99_s": {
+          "median": 2.560294103060049,
+          "min": 2.5396532017899345,
+          "max": 2.5769953936300416
+        },
+        "e2e_p50_s": {
+          "median": 0.9905887629997778,
+          "min": 0.9315687864999518,
+          "max": 1.0215131109998765
+        },
+        "cached_fraction": {
+          "median": 0.8286838422537797,
+          "min": 0.8286838422537797,
+          "max": 0.8286838422537797
+        },
+        "server_prompt_ms_p50": {
+          "median": 514.812,
+          "min": 495.908,
+          "max": 554.486
+        },
+        "server_busy_fraction": {
+          "median": 0.21466082893355698,
+          "min": 0.21405573871244588,
+          "max": 0.21997760932985969
+        },
+        "errors": 0
+      },
+      "runs": [
+        {
+          "rep": 1,
+          "run_id": "20261025T180334Z-295152ff285512ccc0a059a41ef33963abf6478fac6ec31158575779d36dd171",
+          "valid": true,
+          "invalid_reasons": [],
+          "reconciliation": "consistent",
+          "commit": "0a88c798b9482b86156c5d26a1341209838d5f57",
+          "dirty": false,
+          "template": "metadata",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 0.6216858074999436,
+            "p95": 2.0959002337999433,
+            "p99": 2.560294103060049
+          },
+          "e2e_s": {
+            "p50": 0.9315687864999518,
+            "p95": 2.417868160699913,
+            "p99": 2.8928855772500315
+          },
+          "send_lag_p99_ms": 2.4078037800605046,
+          "server_cached_fraction_timings": 0.8286838422537797,
+          "server_prompt_ms_p50": 495.908,
+          "server_tokens_evaluated_metrics": 14935.0,
+          "server_tokens_cached_metrics": 72243.0,
+          "server_cached_fraction_metrics": 0.8286838422537797,
+          "server_busy_fraction": 0.21405573871244588,
+          "achieved_rps": 0.2147656151332834
+        },
+        {
+          "rep": 2,
+          "run_id": "20261025T182358Z-295152ff285512ccc0a059a41ef33963abf6478fac6ec31158575779d36dd171",
+          "valid": true,
+          "invalid_reasons": [],
+          "reconciliation": "consistent",
+          "commit": "0a88c798b9482b86156c5d26a1341209838d5f57",
+          "dirty": false,
+          "template": "metadata",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 0.6855762765001145,
+            "p95": 2.0133809473500373,
+            "p99": 2.5769953936300416
+          },
+          "e2e_s": {
+            "p50": 1.0215131109998765,
+            "p95": 2.3273625786501264,
+            "p99": 2.910156565039975
+          },
+          "send_lag_p99_ms": 3.6858877903019076,
+          "server_cached_fraction_timings": 0.8286838422537797,
+          "server_prompt_ms_p50": 554.486,
+          "server_tokens_evaluated_metrics": 14935.0,
+          "server_tokens_cached_metrics": 72243.0,
+          "server_cached_fraction_metrics": 0.8286838422537797,
+          "server_busy_fraction": 0.21997760932985969,
+          "achieved_rps": 0.21476668498335513
+        },
+        {
+          "rep": 3,
+          "run_id": "20261025T184421Z-295152ff285512ccc0a059a41ef33963abf6478fac6ec31158575779d36dd171",
+          "valid": true,
+          "invalid_reasons": [],
+          "reconciliation": "consistent",
+          "commit": "0a88c798b9482b86156c5d26a1341209838d5f57",
+          "dirty": false,
+          "template": "metadata",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 0.6539176449998649,
+            "p95": 1.9875911978000655,
+            "p99": 2.5396532017899345
+          },
+          "e2e_s": {
+            "p50": 0.9905887629997778,
+            "p95": 2.2967893492002527,
+            "p99": 2.859194787989987
+          },
+          "send_lag_p99_ms": 4.367804489955916,
+          "server_cached_fraction_timings": 0.8286838422537797,
+          "server_prompt_ms_p50": 514.812,
+          "server_tokens_evaluated_metrics": 14935.0,
+          "server_tokens_cached_metrics": 72243.0,
+          "server_cached_fraction_metrics": 0.8286838422537797,
+          "server_busy_fraction": 0.21466082893355698,
+          "achieved_rps": 0.2147884042961921
+        }
+      ]
+    },
+    "shared-metadata-nocache": {
+      "aggregate": {
+        "runs": 5,
+        "valid_runs": 3,
+        "ttft_p50_s": {
+          "median": 2.2918752349996794,
+          "min": 2.281300379500067,
+          "max": 2.313905563999924
+        },
+        "ttft_p95_s": {
+          "median": 5.2342868619,
+          "min": 5.2169844432996335,
+          "max": 5.3118598561000105
+        },
+        "ttft_p99_s": {
+          "median": 6.212725831430081,
+          "min": 6.198031830799729,
+          "max": 6.482622542600085
+        },
+        "e2e_p50_s": {
+          "median": 2.6201748635000968,
+          "min": 2.6094801824997376,
+          "max": 2.653294581499722
+        },
+        "cached_fraction": {
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0
+        },
+        "server_prompt_ms_p50": {
+          "median": 1920.277,
+          "min": 1899.7065,
+          "max": 1938.6174999999998
+        },
+        "server_busy_fraction": {
+          "median": 0.4886029828188127,
+          "min": 0.4879320654391877,
+          "max": 0.4902687513634173
+        },
+        "errors": 0
+      },
+      "runs": [
+        {
+          "rep": 1,
+          "run_id": "20261025T180740Z-295152ff285512ccc0a059a41ef33963abf6478fac6ec31158575779d36dd171",
+          "valid": true,
+          "invalid_reasons": [],
+          "reconciliation": "consistent",
+          "commit": "0a88c798b9482b86156c5d26a1341209838d5f57",
+          "dirty": false,
+          "template": "metadata",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 2.281300379500067,
+            "p95": 5.3118598561000105,
+            "p99": 6.212725831430081
+          },
+          "e2e_s": {
+            "p50": 2.6201748635000968,
+            "p95": 5.635090060900017,
+            "p99": 6.52891048850017
+          },
+          "send_lag_p99_ms": 2.3517317100179014,
+          "server_cached_fraction_timings": 0.0,
+          "server_prompt_ms_p50": 1920.277,
+          "server_tokens_evaluated_metrics": 87178.0,
+          "server_tokens_cached_metrics": 0,
+          "server_cached_fraction_metrics": 0.0,
+          "server_busy_fraction": 0.4879320654391877,
+          "achieved_rps": 0.21303829383543682
+        },
+        {
+          "rep": 2,
+          "run_id": "20261025T182803Z-295152ff285512ccc0a059a41ef33963abf6478fac6ec31158575779d36dd171",
+          "valid": false,
+          "invalid_reasons": [
+            "send lag p99 18.0 ms exceeds 10 ms: requests left later than scheduled"
+          ],
+          "reconciliation": "consistent",
+          "commit": "0a88c798b9482b86156c5d26a1341209838d5f57",
+          "dirty": false,
+          "template": "metadata",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 2.378717358999893,
+            "p95": 5.831132504499942,
+            "p99": 6.813988077689787
+          },
+          "e2e_s": {
+            "p50": 2.7107517989998087,
+            "p95": 6.170688111400159,
+            "p99": 7.131014394099971
+          },
+          "send_lag_p99_ms": 18.02673011018857,
+          "server_cached_fraction_timings": 0.0,
+          "server_prompt_ms_p50": 1962.0735,
+          "server_tokens_evaluated_metrics": 87178.0,
+          "server_tokens_cached_metrics": 0,
+          "server_cached_fraction_metrics": 0.0,
+          "server_busy_fraction": 0.5092913156709729,
+          "achieved_rps": 0.21309800430876244
+        },
+        {
+          "rep": 3,
+          "run_id": "20261025T184826Z-295152ff285512ccc0a059a41ef33963abf6478fac6ec31158575779d36dd171",
+          "valid": false,
+          "invalid_reasons": [
+            "send lag p99 20.6 ms exceeds 10 ms: requests left later than scheduled"
+          ],
+          "reconciliation": "consistent",
+          "commit": "0a88c798b9482b86156c5d26a1341209838d5f57",
+          "dirty": false,
+          "template": "metadata",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 2.4281226134999088,
+            "p95": 5.446579445149927,
+            "p99": 6.669502864890138
+          },
+          "e2e_s": {
+            "p50": 2.765505760999986,
+            "p95": 5.774503303000096,
+            "p99": 6.964297149040045
+          },
+          "send_lag_p99_ms": 20.592311849927118,
+          "server_cached_fraction_timings": 0.0,
+          "server_prompt_ms_p50": 1954.301,
+          "server_tokens_evaluated_metrics": 87178.0,
+          "server_tokens_cached_metrics": 0,
+          "server_cached_fraction_metrics": 0.0,
+          "server_busy_fraction": 0.4983105721988891,
+          "achieved_rps": 0.21302878799248887
+        },
+        {
+          "rep": 4,
+          "run_id": "20261025T191103Z-295152ff285512ccc0a059a41ef33963abf6478fac6ec31158575779d36dd171",
+          "valid": true,
+          "invalid_reasons": [],
+          "reconciliation": "consistent",
+          "commit": "c50dd3267775e7c8f88475615a2751b43334e78f",
+          "dirty": false,
+          "template": "metadata",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 2.2918752349996794,
+            "p95": 5.2169844432996335,
+            "p99": 6.198031830799729
+          },
+          "e2e_s": {
+            "p50": 2.6094801824997376,
+            "p95": 5.524101987749963,
+            "p99": 6.563820722189849
+          },
+          "send_lag_p99_ms": 2.0196249698871336,
+          "server_cached_fraction_timings": 0.0,
+          "server_prompt_ms_p50": 1899.7065,
+          "server_tokens_evaluated_metrics": 87178.0,
+          "server_tokens_cached_metrics": 0,
+          "server_cached_fraction_metrics": 0.0,
+          "server_busy_fraction": 0.4886029828188127,
+          "achieved_rps": 0.21322411254353785
+        },
+        {
+          "rep": 5,
+          "run_id": "20261025T191508Z-295152ff285512ccc0a059a41ef33963abf6478fac6ec31158575779d36dd171",
+          "valid": true,
+          "invalid_reasons": [],
+          "reconciliation": "consistent",
+          "commit": "c50dd3267775e7c8f88475615a2751b43334e78f",
+          "dirty": false,
+          "template": "metadata",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 2.313905563999924,
+            "p95": 5.2342868619,
+            "p99": 6.482622542600085
+          },
+          "e2e_s": {
+            "p50": 2.653294581499722,
+            "p95": 5.566285593649764,
+            "p99": 6.790614936359972
+          },
+          "send_lag_p99_ms": 2.2791148100741054,
+          "server_cached_fraction_timings": 0.0,
+          "server_prompt_ms_p50": 1938.6174999999998,
+          "server_tokens_evaluated_metrics": 87178.0,
+          "server_tokens_cached_metrics": 0,
+          "server_cached_fraction_metrics": 0.0,
+          "server_busy_fraction": 0.4902687513634173,
+          "achieved_rps": 0.2131660168994187
+        }
+      ]
+    },
+    "independent-original-cache": {
+      "aggregate": {
+        "runs": 3,
+        "valid_runs": 2,
+        "ttft_p50_s": {
+          "median": 2.3883982167500335,
+          "min": 2.347358770000028,
+          "max": 2.429437663500039
+        },
+        "ttft_p95_s": {
+          "median": 6.611241869199795,
+          "min": 6.207463628649793,
+          "max": 7.0150201097497975
+        },
+        "ttft_p99_s": {
+          "median": 7.792569521174995,
+          "min": 7.556864792180123,
+          "max": 8.028274250169867
+        },
+        "e2e_p50_s": {
+          "median": 2.7260911487499015,
+          "min": 2.665328261500008,
+          "max": 2.786854035999795
+        },
+        "cached_fraction": {
+          "median": 0.005325078868094594,
+          "min": 0.005325078868094594,
+          "max": 0.005325078868094594
+        },
+        "server_prompt_ms_p50": {
+          "median": 1948.92,
+          "min": 1884.1680000000001,
+          "max": 2013.672
+        },
+        "server_busy_fraction": {
+          "median": 0.4931305588664999,
+          "min": 0.4850162364961099,
+          "max": 0.5012448812368899
+        },
+        "errors": 0
+      },
+      "runs": [
+        {
+          "rep": 1,
+          "run_id": "20261025T181145Z-06d4717fce182061b2d1381833aad5b333dda2e51ca88f85e452f333af7988c4",
+          "valid": false,
+          "invalid_reasons": [
+            "send lag p99 24.3 ms exceeds 10 ms: requests left later than scheduled"
+          ],
+          "reconciliation": "consistent",
+          "commit": "0a88c798b9482b86156c5d26a1341209838d5f57",
+          "dirty": false,
+          "template": "original",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 2.147418987999913,
+            "p95": 6.267313302149921,
+            "p99": 7.352135104609907
+          },
+          "e2e_s": {
+            "p50": 2.469495023000036,
+            "p95": 6.574581899549934,
+            "p99": 7.678886620549978
+          },
+          "send_lag_p99_ms": 24.283338860114977,
+          "server_cached_fraction_timings": 0.005325078868094594,
+          "server_prompt_ms_p50": 1855.743,
+          "server_tokens_evaluated_metrics": 83869.0,
+          "server_tokens_cached_metrics": 449.0,
+          "server_cached_fraction_metrics": 0.005325078868094594,
+          "server_busy_fraction": 0.4775328360629596,
+          "achieved_rps": 0.21288102357212016
+        },
+        {
+          "rep": 2,
+          "run_id": "20261025T183208Z-06d4717fce182061b2d1381833aad5b333dda2e51ca88f85e452f333af7988c4",
+          "valid": true,
+          "invalid_reasons": [],
+          "reconciliation": "consistent",
+          "commit": "0a88c798b9482b86156c5d26a1341209838d5f57",
+          "dirty": false,
+          "template": "original",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 2.429437663500039,
+            "p95": 7.0150201097497975,
+            "p99": 8.028274250169867
+          },
+          "e2e_s": {
+            "p50": 2.786854035999795,
+            "p95": 7.342650462400001,
+            "p99": 8.345588362099944
+          },
+          "send_lag_p99_ms": 1.967161719966697,
+          "server_cached_fraction_timings": 0.005325078868094594,
+          "server_prompt_ms_p50": 2013.672,
+          "server_tokens_evaluated_metrics": 83869.0,
+          "server_tokens_cached_metrics": 449.0,
+          "server_cached_fraction_metrics": 0.005325078868094594,
+          "server_busy_fraction": 0.5012448812368899,
+          "achieved_rps": 0.21289149472778224
+        },
+        {
+          "rep": 3,
+          "run_id": "20261025T185231Z-06d4717fce182061b2d1381833aad5b333dda2e51ca88f85e452f333af7988c4",
+          "valid": true,
+          "invalid_reasons": [],
+          "reconciliation": "consistent",
+          "commit": "0a88c798b9482b86156c5d26a1341209838d5f57",
+          "dirty": false,
+          "template": "original",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 2.347358770000028,
+            "p95": 6.207463628649793,
+            "p99": 7.556864792180123
+          },
+          "e2e_s": {
+            "p50": 2.665328261500008,
+            "p95": 6.532665007599917,
+            "p99": 7.87690852855979
+          },
+          "send_lag_p99_ms": 2.618037200014598,
+          "server_cached_fraction_timings": 0.005325078868094594,
+          "server_prompt_ms_p50": 1884.1680000000001,
+          "server_tokens_evaluated_metrics": 83869.0,
+          "server_tokens_cached_metrics": 449.0,
+          "server_cached_fraction_metrics": 0.005325078868094594,
+          "server_busy_fraction": 0.4850162364961099,
+          "achieved_rps": 0.21265114831533113
+        }
+      ]
+    },
+    "independent-metadata-cache": {
+      "aggregate": {
+        "runs": 3,
+        "valid_runs": 2,
+        "ttft_p50_s": {
+          "median": 2.1352454242500585,
+          "min": 2.10055973850001,
+          "max": 2.169931110000107
+        },
+        "ttft_p95_s": {
+          "median": 5.635574466500122,
+          "min": 5.532733800300025,
+          "max": 5.7384151327002195
+        },
+        "ttft_p99_s": {
+          "median": 6.579370052730131,
+          "min": 6.3176015929100835,
+          "max": 6.841138512550179
+        },
+        "e2e_p50_s": {
+          "median": 2.444028867750035,
+          "min": 2.3880374455000037,
+          "max": 2.500020290000066
+        },
+        "cached_fraction": {
+          "median": 0.040460038417584554,
+          "min": 0.040460038417584554,
+          "max": 0.040460038417584554
+        },
+        "server_prompt_ms_p50": {
+          "median": 1846.3782500000002,
+          "min": 1810.188,
+          "max": 1882.5685
+        },
+        "server_busy_fraction": {
+          "median": 0.4647971502333118,
+          "min": 0.45458236210450015,
+          "max": 0.4750119383621235
+        },
+        "errors": 0
+      },
+      "runs": [
+        {
+          "rep": 1,
+          "run_id": "20261025T181549Z-06d4717fce182061b2d1381833aad5b333dda2e51ca88f85e452f333af7988c4",
+          "valid": true,
+          "invalid_reasons": [],
+          "reconciliation": "consistent",
+          "commit": "0a88c798b9482b86156c5d26a1341209838d5f57",
+          "dirty": false,
+          "template": "metadata",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 2.10055973850001,
+            "p95": 5.532733800300025,
+            "p99": 6.3176015929100835
+          },
+          "e2e_s": {
+            "p50": 2.3880374455000037,
+            "p95": 5.829638335300069,
+            "p99": 6.652235873890103
+          },
+          "send_lag_p99_ms": 2.40109900988017,
+          "server_cached_fraction_timings": 0.040460038417584554,
+          "server_prompt_ms_p50": 1810.188,
+          "server_tokens_evaluated_metrics": 78926.0,
+          "server_tokens_cached_metrics": 3328.0,
+          "server_cached_fraction_metrics": 0.040460038417584554,
+          "server_busy_fraction": 0.45458236210450015,
+          "achieved_rps": 0.21300652005385506
+        },
+        {
+          "rep": 2,
+          "run_id": "20261025T183613Z-06d4717fce182061b2d1381833aad5b333dda2e51ca88f85e452f333af7988c4",
+          "valid": false,
+          "invalid_reasons": [
+            "send lag p99 12.4 ms exceeds 10 ms: requests left later than scheduled"
+          ],
+          "reconciliation": "consistent",
+          "commit": "0a88c798b9482b86156c5d26a1341209838d5f57",
+          "dirty": false,
+          "template": "metadata",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 2.1732762850001563,
+            "p95": 6.032992842349744,
+            "p99": 6.695668648270076
+          },
+          "e2e_s": {
+            "p50": 2.5248490384999513,
+            "p95": 6.355359888249949,
+            "p99": 6.996436583739911
+          },
+          "send_lag_p99_ms": 12.440082000084963,
+          "server_cached_fraction_timings": 0.040460038417584554,
+          "server_prompt_ms_p50": 1873.0305,
+          "server_tokens_evaluated_metrics": 78926.0,
+          "server_tokens_cached_metrics": 3328.0,
+          "server_cached_fraction_metrics": 0.040460038417584554,
+          "server_busy_fraction": 0.4710590196349008,
+          "achieved_rps": 0.2131453955647127
+        },
+        {
+          "rep": 3,
+          "run_id": "20261025T185636Z-06d4717fce182061b2d1381833aad5b333dda2e51ca88f85e452f333af7988c4",
+          "valid": true,
+          "invalid_reasons": [],
+          "reconciliation": "consistent",
+          "commit": "0a88c798b9482b86156c5d26a1341209838d5f57",
+          "dirty": false,
+          "template": "metadata",
+          "sent": 48,
+          "ok": 48,
+          "errors": {},
+          "ttft_s": {
+            "p50": 2.169931110000107,
+            "p95": 5.7384151327002195,
+            "p99": 6.841138512550179
+          },
+          "e2e_s": {
+            "p50": 2.500020290000066,
+            "p95": 6.08272967914986,
+            "p99": 7.158247760790274
+          },
+          "send_lag_p99_ms": 4.876705970542053,
+          "server_cached_fraction_timings": 0.040460038417584554,
+          "server_prompt_ms_p50": 1882.5685,
+          "server_tokens_evaluated_metrics": 78926.0,
+          "server_tokens_cached_metrics": 3328.0,
+          "server_cached_fraction_metrics": 0.040460038417584554,
+          "server_busy_fraction": 0.4750119383621235,
+          "achieved_rps": 0.21310803795072691
+        }
+      ]
+    }
+  },
+  "pairs": [
+    {
+      "baseline": "shared-original-cache",
+      "treatment": "shared-metadata-cache",
+      "question": "Does the template fix cut TTFT?",
+      "result": {
+        "all": {
+          "n": 48,
+          "median_ratio": 0.21718195505982874,
+          "ratio_p10": 0.09187184255627376,
+          "ratio_p90": 0.46747022585854126,
+          "faster_fraction": 1.0,
+          "median_saving_s": 2.087448590000065
+        },
+        "first_in_session": {
+          "n": 8,
+          "median_ratio": 0.7090492080798204,
+          "ratio_p10": 0.2925252978840042,
+          "ratio_p90": 0.9650788116348099,
+          "faster_fraction": 1.0,
+          "median_saving_s": 1.4305149219996451
+        },
+        "follow_ups": {
+          "n": 40,
+          "median_ratio": 0.20630653774062313,
+          "ratio_p10": 0.0901970505606541,
+          "ratio_p90": 0.3155883139572764,
+          "faster_fraction": 1.0,
+          "median_saving_s": 2.087448590000065
+        }
+      }
+    },
+    {
+      "baseline": "shared-metadata-nocache",
+      "treatment": "shared-metadata-cache",
+      "question": "Is the prefix cache what delivers the gain?",
+      "result": {
+        "all": {
+          "n": 48,
+          "median_ratio": 0.24344808389593584,
+          "ratio_p10": 0.10466751683836548,
+          "ratio_p90": 0.5238554105384684,
+          "faster_fraction": 0.9375,
+          "median_saving_s": 1.8648721149997982
+        },
+        "first_in_session": {
+          "n": 8,
+          "median_ratio": 0.7787739125885303,
+          "ratio_p10": 0.39592919147522754,
+          "ratio_p90": 1.0900077872123928,
+          "faster_fraction": 0.625,
+          "median_saving_s": 1.0082259519999752
+        },
+        "follow_ups": {
+          "n": 40,
+          "median_ratio": 0.2312037203556605,
+          "ratio_p10": 0.09038057659204775,
+          "ratio_p90": 0.3123148417420296,
+          "faster_fraction": 1.0,
+          "median_saving_s": 1.8648721149997982
+        }
+      }
+    },
+    {
+      "baseline": "shared-metadata-nocache",
+      "treatment": "shared-original-cache",
+      "question": "Did turning the cache on do anything with the original template?",
+      "result": {
+        "all": {
+          "n": 48,
+          "median_ratio": 1.0910400391797377,
+          "ratio_p10": 0.9903238322121319,
+          "ratio_p90": 1.3383660037706369,
+          "faster_fraction": 0.125,
+          "median_saving_s": -0.20982645999998795
+        },
+        "first_in_session": {
+          "n": 8,
+          "median_ratio": 1.1477063540356194,
+          "ratio_p10": 1.0463222780273103,
+          "ratio_p90": 1.2726477893172055,
+          "faster_fraction": 0.125,
+          "median_saving_s": -0.36945526500011283
+        },
+        "follow_ups": {
+          "n": 40,
+          "median_ratio": 1.084291209218565,
+          "ratio_p10": 0.975155248502635,
+          "ratio_p90": 1.3376643744640677,
+          "faster_fraction": 0.125,
+          "median_saving_s": -0.2021800904999509
+        }
+      }
+    },
+    {
+      "baseline": "independent-original-cache",
+      "treatment": "independent-metadata-cache",
+      "question": "Does the fix help when context doesn't repeat? (negative control)",
+      "result": {
+        "all": {
+          "n": 48,
+          "median_ratio": 0.9045420157227699,
+          "ratio_p10": 0.7814833204253332,
+          "ratio_p90": 1.0212698254938393,
+          "faster_fraction": 0.8333333333333334,
+          "median_saving_s": 0.22525200850009242
+        },
+        "first_in_session": {
+          "n": 8,
+          "median_ratio": 0.9038666473623125,
+          "ratio_p10": 0.7249534567823218,
+          "ratio_p90": 1.0696840525822056,
+          "faster_fraction": 0.75,
+          "median_saving_s": 0.3257601967499113
+        },
+        "follow_ups": {
+          "n": 40,
+          "median_ratio": 0.9045420157227699,
+          "ratio_p10": 0.819807293622691,
+          "ratio_p90": 1.020472425729884,
+          "faster_fraction": 0.85,
+          "median_saving_s": 0.213169203500172
+        }
+      }
+    }
+  ]
+}

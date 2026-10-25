@@ -33,3 +33,28 @@ def chunk_content(line: str) -> str | None:
             parts.append(fn.get("arguments") or fn.get("name") or "")
     text = "".join(parts)
     return text or None
+
+
+def chunk_timings(line: str) -> dict[str, float] | None:
+    """Backend-reported timings carried by an SSE line, if the server sends them.
+
+    llama.cpp's server adds a `timings` object to its final chunk (cache_n: prompt tokens
+    reused from the KV cache; prompt_n: prompt tokens evaluated; prompt_ms, predicted_n,
+    predicted_ms). vLLM and the simulator don't, so this returns None for them.
+    """
+    if not line.startswith("data:"):
+        return None
+    data = line[5:].strip()
+    if not data or data == "[DONE]" or '"timings"' not in data:
+        return None
+    try:
+        timings = json.loads(data).get("timings")
+    except (json.JSONDecodeError, AttributeError):
+        return None
+    if not isinstance(timings, dict):
+        return None
+    return {
+        k: float(v)
+        for k, v in timings.items()
+        if isinstance(v, int | float) and not isinstance(v, bool)
+    }

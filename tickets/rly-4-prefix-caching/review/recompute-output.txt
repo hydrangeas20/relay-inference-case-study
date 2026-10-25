@@ -1,0 +1,65 @@
+== Runs (validity recomputed from raw send times; CPU from summary)
+shared-original-cache        rep1 VALID   lag_p99=  5.3ms shortfall=+0.0000 cpu_p95=2% errors=0 (agrees with summary)
+shared-original-cache        rep2 VALID   lag_p99=  6.4ms shortfall=+0.0000 cpu_p95=2% errors=0 (agrees with summary)
+shared-original-cache        rep3 VALID   lag_p99=  2.8ms shortfall=-0.0000 cpu_p95=2% errors=0 (agrees with summary)
+shared-metadata-cache        rep1 VALID   lag_p99=  2.4ms shortfall=+0.0000 cpu_p95=2% errors=0 (agrees with summary)
+shared-metadata-cache        rep2 VALID   lag_p99=  3.7ms shortfall=-0.0000 cpu_p95=2% errors=0 (agrees with summary)
+shared-metadata-cache        rep3 VALID   lag_p99=  4.4ms shortfall=-0.0000 cpu_p95=2% errors=0 (agrees with summary)
+shared-metadata-nocache      rep1 VALID   lag_p99=  2.4ms shortfall=+0.0000 cpu_p95=2% errors=0 (agrees with summary)
+shared-metadata-nocache      rep2 INVALID lag_p99= 18.0ms shortfall=+0.0000 cpu_p95=2% errors=0 (agrees with summary)
+shared-metadata-nocache      rep3 INVALID lag_p99= 20.6ms shortfall=+0.0000 cpu_p95=2% errors=0 (agrees with summary)
+shared-metadata-nocache      rep4 VALID   lag_p99=  2.0ms shortfall=+0.0000 cpu_p95=2% errors=0 (agrees with summary)
+shared-metadata-nocache      rep5 VALID   lag_p99=  2.3ms shortfall=-0.0000 cpu_p95=2% errors=0 (agrees with summary)
+independent-original-cache   rep1 INVALID lag_p99= 24.3ms shortfall=+0.0000 cpu_p95=2% errors=0 (agrees with summary)
+independent-original-cache   rep2 VALID   lag_p99=  2.0ms shortfall=-0.0000 cpu_p95=2% errors=0 (agrees with summary)
+independent-original-cache   rep3 VALID   lag_p99=  2.6ms shortfall=+0.0000 cpu_p95=2% errors=0 (agrees with summary)
+independent-metadata-cache   rep1 VALID   lag_p99=  2.4ms shortfall=+0.0000 cpu_p95=2% errors=0 (agrees with summary)
+independent-metadata-cache   rep2 INVALID lag_p99= 12.4ms shortfall=-0.0000 cpu_p95=2% errors=0 (agrees with summary)
+independent-metadata-cache   rep3 VALID   lag_p99=  4.9ms shortfall=+0.0000 cpu_p95=2% errors=0 (agrees with summary)
+
+== Conditions (valid runs only)
+condition                    runs  medRunP50  pooledP50  medRunP95  pooledP95  share(metrics)  share(timings)  busy   out_tokens
+shared-original-cache        3/3       2524       2554       5799       5839          0.0050          0.0050  0.524  [8.0]
+shared-metadata-cache        3/3        654        657       2013       2095          0.8287          0.8287  0.215  [8.0]
+shared-metadata-nocache      3/5       2292       2298       5234       5403          0.0000          0.0000  0.489  [8.0]
+independent-original-cache   2/3       2388       2362       6611       6865          0.0053          0.0053  0.493  [8.0]
+independent-metadata-cache   2/3       2135       2138       5636       5673          0.0405          0.0405  0.465  [8.0]
+
+== The headline speed-up, three ways
+ratio of median per-run p50s : 3.86x
+ratio of pooled p50s         : 3.89x
+ratio of median per-run p95s : 2.88x
+
+== Paired per-request comparisons (median TTFT per request across runs)
+fix                                  [valid, all reps                         ] n_runs=3/3 median=0.217 CI95(runs+sessions)=0.183-0.240 follow=0.206 first=0.709 faster=100% per_run=[0.21, 0.223, 0.22]
+fix                                  [valid, planned reps 1-3 only            ] n_runs=3/3 median=0.217 CI95(runs+sessions)=0.183-0.240 follow=0.206 first=0.709 faster=100% per_run=[0.21, 0.223, 0.22]
+fix                                  [ALL runs incl. invalid (non-inferential)] n_runs=3/3 median=0.217 CI95(runs+sessions)=0.183-0.240 follow=0.206 first=0.709 faster=100% per_run=[0.21, 0.223, 0.22]
+cache_delivers_gain                  [valid, all reps                         ] n_runs=3/3 median=0.243 CI95(runs+sessions)=0.209-0.267 follow=0.231 first=0.779 faster=94% per_run=[0.236, 0.253, 0.245]
+cache_delivers_gain                  [valid, planned reps 1-3 only            ] n_runs=1/3 median=0.243 CI95(runs+sessions)=0.209-0.268 follow=0.232 first=0.765 faster=96% per_run=[]
+cache_delivers_gain                  [ALL runs incl. invalid (non-inferential)] n_runs=5/3 median=0.244 CI95(runs+sessions)=0.204-0.266 follow=0.224 first=0.776 faster=96% per_run=[]
+P4 original+cache / fixed+nocache    [valid, all reps                         ] n_runs=3/3 median=1.091 CI95(runs+sessions)=1.066-1.173 follow=1.084 first=1.148 faster=12% per_run=[1.114, 1.085, 1.089]
+P4 original+cache / fixed+nocache    [valid, planned reps 1-3 only            ] n_runs=1/3 median=1.117 CI95(runs+sessions)=1.062-1.182 follow=1.117 first=1.150 faster=19% per_run=[]
+P4 original+cache / fixed+nocache    [ALL runs incl. invalid (non-inferential)] n_runs=5/3 median=1.083 CI95(runs+sessions)=1.038-1.155 follow=1.073 first=1.134 faster=15% per_run=[]
+P5 fixed+nocache / original+cache    [valid, all reps                         ] n_runs=3/3 median=0.917 CI95(runs+sessions)=0.852-0.935 follow=0.922 first=0.872 faster=88% per_run=[0.898, 0.922, 0.919]
+P5 fixed+nocache / original+cache    [valid, planned reps 1-3 only            ] n_runs=3/1 median=0.895 CI95(runs+sessions)=0.846-0.942 follow=0.895 first=0.871 faster=81% per_run=[]
+P5 fixed+nocache / original+cache    [ALL runs incl. invalid (non-inferential)] n_runs=3/5 median=0.923 CI95(runs+sessions)=0.867-0.964 follow=0.932 first=0.882 faster=85% per_run=[]
+negative_control                     [valid, all reps                         ] n_runs=2/2 median=0.905 CI95(runs+sessions)=0.843-0.955 follow=0.905 first=0.904 faster=83% per_run=[0.857, 0.955]
+negative_control                     [valid, planned reps 1-3 only            ] n_runs=2/2 median=0.905 CI95(runs+sessions)=0.843-0.955 follow=0.905 first=0.904 faster=83% per_run=[0.857, 0.955]
+negative_control                     [ALL runs incl. invalid (non-inferential)] n_runs=3/3 median=0.933 CI95(runs+sessions)=0.839-0.991 follow=0.932 first=0.937 faster=79% per_run=[0.914, 0.903, 0.955]
+
+== Queue-free view: server-side prefill time (prompt_ms), valid runs
+shared-original-cache        prefill ms median    2025   uncached prefill ms/token median 1.149 (n=144)
+shared-metadata-cache        prefill ms median     523   uncached prefill ms/token median 0.973 (n=3)
+shared-metadata-nocache      prefill ms median    1903   uncached prefill ms/token median 1.080 (n=144)
+independent-original-cache   prefill ms median    1919   uncached prefill ms/token median 1.118 (n=96)
+independent-metadata-cache   prefill ms median    1843   uncached prefill ms/token median 1.065 (n=2)
+paired prefill-time ratio, fix vs original (median over requests): 0.239
+
+== Request-level checks (shared trace, rep 1 of each condition)
+prompt chars, original minus fixed: min 60 max 60
+prompt tokens, original minus fixed: min 43.0 max 43.0
+fixed vs cache-off prompts identical in token count: True
+original prompt tokens: min 1470 median 1782 max 2402
+original cache_n per request: [0.0, 7.0, 10.0]
+fixed, follow-up prompt_n (tokens evaluated): min 22 median 40 max 135
+server counters == sum of per-request timings in every run: True

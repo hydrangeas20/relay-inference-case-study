@@ -1,0 +1,294 @@
+{
+  "schema": "phase1-provisional",
+  "run_id": "20261025T190647Z-0a89c03184c67e1c7af5818116b5fff384205c1108de7c9a91df462c2589bf07",
+  "created_at": "2026-10-25T19:06:47+00:00",
+  "source": "cpu",
+  "trace": {
+    "path": "results/phase1-verification/mixed.jsonl",
+    "file_sha256": "7a3adc8436a753554404a7a1772165c32f5c183072a2163d1909c7bc1a48205c",
+    "format_version": 3,
+    "trace_id": "0a89c03184c67e1c7af5818116b5fff384205c1108de7c9a91df462c2589bf07",
+    "spec_id": "6e72b2d1da836d0da0d454a08e3d27ae58e7f8a9208779af42436e55a60ebb23",
+    "generator_sha256": "43d93ae57bbda7ae94b820811f6db4180719a7318160f79ea69eb7a788c985ba"
+  },
+  "corpus_sha256": "048fbcba30e66e0dd51639b53cfb7497333f874175adbc03ae0d756cb1dbf3d4",
+  "valid": false,
+  "self_check": {
+    "valid": false,
+    "reasons": [
+      "send lag p99 10.2 ms exceeds 10 ms: requests left later than scheduled"
+    ],
+    "intended_rate_rps": 0.3968522781581099,
+    "achieved_rate_rps": 0.3968284069770015,
+    "rate_shortfall": 6.0151301686350855e-05,
+    "cpu_pct": {
+      "p50": 1.95,
+      "p95": 4.0,
+      "p99": 4.0
+    },
+    "send_lag_s": {
+      "p50": 0.0009670229998626212,
+      "p95": 0.0046625205497471825,
+      "p99": 0.010207063959912437
+    }
+  },
+  "workloads": {
+    "agent": {
+      "sent": 6,
+      "ok": 6,
+      "errors": {},
+      "ttft_s": {
+        "p50": 23.14685564149977,
+        "p95": 29.725683139500006,
+        "p99": 30.17981032310004
+      },
+      "e2e_s": {
+        "p50": 35.71544119000009,
+        "p95": 41.039256571500346,
+        "p99": 41.643558949500445
+      },
+      "server_timings": {
+        "requests_with_timings": 6,
+        "prompt_tokens_cached": 27.0,
+        "prompt_tokens_evaluated": 6698.0,
+        "cached_fraction": 0.004014869888475836,
+        "prompt_ms": {
+          "p50": 755.5855,
+          "p95": 1710.66025,
+          "p99": 1745.28885
+        }
+      }
+    },
+    "completion": {
+      "sent": 14,
+      "ok": 14,
+      "errors": {},
+      "ttft_s": {
+        "p50": 3.529437915500239,
+        "p95": 30.85470477320041,
+        "p99": 32.476819257840084
+      },
+      "e2e_s": {
+        "p50": 7.697143745499943,
+        "p95": 31.8060850493006,
+        "p99": 34.1238536650603
+      },
+      "server_timings": {
+        "requests_with_timings": 14,
+        "prompt_tokens_cached": 109.0,
+        "prompt_tokens_evaluated": 16619.0,
+        "cached_fraction": 0.006516021042563367,
+        "prompt_ms": {
+          "p50": 684.4135,
+          "p95": 2617.3559499999997,
+          "p99": 3287.436789999999
+        }
+      }
+    },
+    "indexing": {
+      "sent": 4,
+      "ok": 4,
+      "errors": {},
+      "ttft_s": {
+        "p50": null,
+        "p95": null,
+        "p99": null
+      },
+      "e2e_s": {
+        "p50": 0.017037319999872125,
+        "p95": 0.023579643449829744,
+        "p99": 0.024438199889827955
+      },
+      "server_timings": null
+    }
+  },
+  "reconciliation": {
+    "status": "consistent",
+    "layers": [
+      {
+        "name": "gateway",
+        "count": 20.0,
+        "quantiles": {
+          "p50": 6.666666666666667,
+          "p95": 45.0,
+          "p99": 57.000000000000014
+        },
+        "resolution_s": {
+          "p50": 5.0,
+          "p95": 30.0,
+          "p99": 30.0
+        }
+      },
+      {
+        "name": "client",
+        "count": 20.0,
+        "quantiles": {
+          "p50": 6.924773662000007,
+          "p95": 30.422792407000046,
+          "p99": 32.39043678460001
+        },
+        "resolution_s": {
+          "p50": 0.0,
+          "p95": 0.0,
+          "p99": 0.0
+        }
+      }
+    ],
+    "problems": [],
+    "notes": []
+  },
+  "manifest": {
+    "git": {
+      "commit": "c50dd3267775e7c8f88475615a2751b43334e78f",
+      "branch": "rly-4-prefix-cache-experiment",
+      "dirty": false
+    },
+    "environment": {
+      "python": "3.11.17",
+      "platform": "Linux-6.18.44-fc-v153-x86_64-with-glibc2.39",
+      "cpu_model": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+      "logical_cpus": 2,
+      "mem_total_gb": 7.8,
+      "packages": {
+        "relay": "0.1.0",
+        "fastapi": "0.141.1",
+        "httpx": "0.28.1",
+        "uvicorn": "0.54.0",
+        "numpy": "2.4.6",
+        "pydantic": "2.13.5",
+        "boto3": "1.43.103"
+      }
+    },
+    "gateway": {
+      "prompt_template": "original",
+      "completion_model": "relay/code-7b",
+      "inference_base_url": "http://127.0.0.1:8081/v1"
+    },
+    "inference_server": {
+      "base_url": "http://127.0.0.1:8081/v1",
+      "models": {
+        "models": [
+          {
+            "name": "models/relay-rly4-qwen2-synthetic.gguf",
+            "model": "models/relay-rly4-qwen2-synthetic.gguf",
+            "modified_at": "",
+            "size": "",
+            "digest": "",
+            "type": "model",
+            "description": "",
+            "tags": [
+              ""
+            ],
+            "capabilities": [
+              "completion"
+            ],
+            "parameters": "",
+            "details": {
+              "parent_model": "",
+              "format": "gguf",
+              "family": "",
+              "families": [
+                ""
+              ],
+              "parameter_size": "",
+              "quantization_level": ""
+            }
+          }
+        ],
+        "object": "list",
+        "data": [
+          {
+            "id": "models/relay-rly4-qwen2-synthetic.gguf",
+            "aliases": [
+              "models/relay-rly4-qwen2-synthetic.gguf"
+            ],
+            "tags": [],
+            "object": "model",
+            "architecture": {
+              "input_modalities": [
+                "text"
+              ],
+              "output_modalities": [
+                "text"
+              ]
+            },
+            "created": 1792955110,
+            "owned_by": "llamacpp",
+            "meta": {
+              "vocab_type": 2,
+              "n_vocab": 151936,
+              "n_ctx": 4096,
+              "n_ctx_train": 32768,
+              "n_embd": 512,
+              "n_params": 179714560,
+              "size": 359458816,
+              "ftype": "F16"
+            }
+          }
+        ]
+      },
+      "engine": "llama.cpp",
+      "llama_cpp": {
+        "build_info": "b1-2280f0f",
+        "model_path": "models/relay-rly4-qwen2-synthetic.gguf",
+        "model_sha256": "4ecee8530f06ca472034d4640b8436722813a7e76be7fe0562fdfe585eb0b914",
+        "total_slots": 2,
+        "n_ctx": 4096
+      }
+    },
+    "trace_header": {
+      "format_version": 3,
+      "trace_id": "0a89c03184c67e1c7af5818116b5fff384205c1108de7c9a91df462c2589bf07",
+      "seed": 11,
+      "duration_s": 60.0,
+      "n_requests": 24,
+      "corpus_sha256": "048fbcba30e66e0dd51639b53cfb7497333f874175adbc03ae0d756cb1dbf3d4",
+      "generator": "poisson-constant-v1",
+      "params": {
+        "duration_s": 60,
+        "rate_rps": 0.4,
+        "seed": 11,
+        "mix": {
+          "completion": 0.5,
+          "agent": 0.25,
+          "indexing": 0.25
+        },
+        "completion_prefix_chars": [
+          1000,
+          6000
+        ],
+        "completion_suffix_chars": [
+          0,
+          1500
+        ],
+        "completion_context_files": [
+          0,
+          2
+        ],
+        "completion_max_tokens": [
+          16,
+          64
+        ],
+        "agent_context_chars": [
+          2000,
+          8000
+        ],
+        "agent_max_tokens": [
+          128,
+          512
+        ],
+        "indexing_files": [
+          1,
+          4
+        ],
+        "indexing_chunk_chars": 1500
+      },
+      "kind": "constant",
+      "start_utc_s": 0.0,
+      "scale": null,
+      "traffic_model_sha256": null,
+      "spec_id": "6e72b2d1da836d0da0d454a08e3d27ae58e7f8a9208779af42436e55a60ebb23",
+      "generator_sha256": "43d93ae57bbda7ae94b820811f6db4180719a7318160f79ea69eb7a788c985ba"
+    }
+  }
+}

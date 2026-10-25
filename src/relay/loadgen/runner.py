@@ -26,14 +26,14 @@ from typing import Any
 import httpx
 import psutil
 
-from relay import aws, prompts
+from relay import aws, manifest, prompts
 from relay.config import Settings, get_settings
 from relay.corpus.manifest import load_lock
 from relay.corpus.store import Corpus, load_corpus
 from relay.gateway.app import PROMPT_CHARS_HEADER
 from relay.loadgen import reconcile, selfcheck
 from relay.loadgen.stats import percentiles
-from relay.sse import chunk_content
+from relay.sse import chunk_content, chunk_timings
 from relay.traces.io import Trace, read_trace
 from relay.traces.schema import AgentRequest, CompletionRequest, IndexingRequest, TraceRequest
 
@@ -54,6 +54,8 @@ class RequestRecord:
     output_chars: int = 0
     prompt_chars: int | None = None  # built prompt size reported by the gateway (MEASURED)
     error: str | None = None
+    # Backend-reported per-request timings, when the server sends them (llama.cpp does).
+    server_timings: dict[str, float] | None = None
 
 
 class Replayer:
@@ -143,6 +145,9 @@ class Replayer:
                 record.error = (await resp.aread()).decode(errors="replace")[:300]
                 return
             async for line in resp.aiter_lines():
+                timings = chunk_timings(line)
+                if timings is not None:
+                    record.server_timings = timings
                 content = chunk_content(line)
                 if content is None:
                     continue
@@ -154,6 +159,24 @@ class Replayer:
             record.status = "empty_response"
 
 
+def server_timing_summary(records: list[RequestRecord]) -> dict[str, Any] | None:
+    """Aggregate backend-reported timings (llama.cpp): how many prompt tokens came from
+    the KV cache versus were evaluated, and the server's own prompt-processing time."""
+    timed = [r.server_timings for r in records if r.server_timings is not None]
+    if not timed:
+        return None
+    cached = sum(t.get("cache_n", 0.0) for t in timed)
+    evaluated = sum(t.get("prompt_n", 0.0) for t in timed)
+    total = cached + evaluated
+    return {
+        "requests_with_timings": len(timed),
+        "prompt_tokens_cached": cached,
+        "prompt_tokens_evaluated": evaluated,
+        "cached_fraction": cached / total if total else None,
+        "prompt_ms": percentiles([t["prompt_ms"] for t in timed if "prompt_ms" in t]),
+    }
+
+
 def summarize(
     run_id: str,
     settings: Settings,
@@ -162,6 +185,7 @@ def summarize(
     records: list[RequestRecord],
     check: selfcheck.SelfCheck,
     recon: reconcile.Reconciliation | None,
+    run_manifest: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     workloads: dict[str, Any] = {}
     for workload in sorted({r.workload for r in records}):
@@ -173,6 +197,7 @@ def summarize(
             "errors": {s: sum(r.status == s for r in rs) for s in {r.status for r in rs} - {"ok"}},
             "ttft_s": percentiles([r.ttft_s for r in ok if r.ttft_s is not None]),
             "e2e_s": percentiles([r.e2e_s for r in ok if r.e2e_s is not None]),
+            "server_timings": server_timing_summary(ok),
         }
     return {
         "schema": "phase1-provisional",  # replaced by the Phase 2 results schema
@@ -192,6 +217,7 @@ def summarize(
         "self_check": asdict(check),
         "workloads": workloads,
         "reconciliation": asdict(recon) if recon else None,
+        "manifest": run_manifest,
     }
 
 
@@ -224,6 +250,10 @@ async def run_trace(
             if do_reconcile
             else (None, None)
         )
+        run_manifest = await manifest.collect(
+            http, settings.gateway_url, settings.inference_base_url
+        )
+        run_manifest["trace_header"] = trace.header.model_dump()
         replayer = Replayer(settings, corpus, http, sqs)
         records = await replayer.run(trace)
         after = (
@@ -236,6 +266,11 @@ async def run_trace(
         [r.intended_send_s for r in records],
         [r.actual_send_s for r in records],
         replayer.cpu_samples,
+        send_lag_p99_limit_s=(
+            settings.loadgen_send_lag_p99_limit_ms / 1000
+            if settings.loadgen_send_lag_p99_limit_ms is not None
+            else None
+        ),
     )
     streamed = [r for r in records if r.workload != "indexing" and r.status == "ok"]
     recon = (
@@ -254,7 +289,7 @@ async def run_trace(
     raw_path = out_dir / "raw" / f"{run_id}.jsonl"
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     raw_path.write_text("".join(json.dumps(asdict(r)) + "\n" for r in records))
-    summary = summarize(run_id, settings, trace, trace_path, records, check, recon)
+    summary = summarize(run_id, settings, trace, trace_path, records, check, recon, run_manifest)
     (out_dir / f"{run_id}.summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     return summary
 
@@ -278,6 +313,8 @@ def main(argv: list[str] | None = None) -> None:
         print(f"  reconciliation: {recon['status']}")
         for line in recon["problems"] + recon["notes"]:
             print(f"    {line}")
+    if not summary["valid"]:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

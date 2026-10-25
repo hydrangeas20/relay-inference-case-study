@@ -5,7 +5,14 @@ from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ResultSource = Literal["gpu", "sim", "projection", "floci"]
+# `cpu` (ADR-0007): a real inference engine on CPU. Real cache and scheduling behaviour,
+# but not GPU latency and, with RLY-4's synthetic weights, no quality signal.
+ResultSource = Literal["gpu", "cpu", "sim", "projection", "floci"]
+
+# RLY-4: where Relay's per-request header (request ID + timestamp) goes.
+#   original  at the top of every prompt, as Relay shipped it (the RLY-4 baseline)
+#   metadata  out of the prompt; sent upstream as the X-Request-Id header instead
+PromptTemplate = Literal["original", "metadata"]
 
 
 class Settings(BaseSettings):
@@ -18,6 +25,15 @@ class Settings(BaseSettings):
     completion_model: str = "relay/code-7b"
     embedding_model: str = "relay/embed-small"
     inference_timeout_s: float = 60.0
+
+    # Load-generator send-lag validity limit in ms (methodology rule 4). Unset: send lag
+    # is reported but doesn't invalidate a run. Each experiment sets its own before it
+    # runs; RLY-4's runner sets 10 (ADR-0007).
+    loadgen_send_lag_p99_limit_ms: float | None = None
+
+    # Gateway prompt template (RLY-4). The default stays Relay's original so every
+    # existing run and trace keeps its meaning.
+    prompt_template: PromptTemplate = "original"
 
     # Gateway (Relay's API).
     gateway_url: str = "http://localhost:8080"

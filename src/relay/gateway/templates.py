@@ -1,14 +1,24 @@
 """Relay's prompt templates, as they were at the start of the engagement.
 
-These are deliberately left as Relay wrote them. The per-request header at the top
-of every prompt is investigated in RLY-4; don't "fix" it outside that ticket, or
-the RLY-4 before/after comparison loses its baseline.
+`variant="original"` (the default) is Relay's template as shipped: a per-request
+header (request ID and timestamp) at the top of every prompt. RLY-4 found that the
+header makes every prompt differ from its first tokens, so a prefix cache can't reuse
+anything. `variant="metadata"` is the fix: the header leaves the prompt, and the
+gateway sends the request ID as request metadata (X-Request-Id) instead.
+
+Why remove rather than move it to the end: for inline completion the prompt ends at the
+user's cursor, so text appended after the code would sit between the code and the
+completion. Request metadata belongs in the request, not in the model's input.
+
+Keep "original" byte-for-byte unchanged: it's the RLY-4 baseline.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
+
+TemplateVariant = Literal["original", "metadata"]
 
 SYSTEM_PROMPT = """You are Relay, an AI coding assistant embedded in the user's editor.
 Follow the conventions of the surrounding code. Prefer small, correct changes.
@@ -70,8 +80,10 @@ def completion_prompt(
     prefix: str,
     context_files: list[tuple[str, str]],
     now: datetime | None = None,
+    variant: TemplateVariant = "original",
 ) -> str:
-    parts = [_header(request_id, now), SYSTEM_PROMPT, f"\nRepository: {repo}\n"]
+    header = _header(request_id, now) if variant == "original" else ""
+    parts = [header, SYSTEM_PROMPT, f"\nRepository: {repo}\n"]
     for path, content in context_files:
         parts.append(f"\n--- {path} ---\n{content}\n")
     parts.append(f"\n--- {file_path} ({language}) ---\n{prefix}")
@@ -87,9 +99,11 @@ def agent_messages(
     file_content: str,
     question: str,
     now: datetime | None = None,
+    variant: TemplateVariant = "original",
 ) -> list[dict[str, str]]:
+    header = _header(request_id, now) if variant == "original" else ""
     return [
-        {"role": "system", "content": _header(request_id, now) + SYSTEM_PROMPT},
+        {"role": "system", "content": header + SYSTEM_PROMPT},
         {
             "role": "user",
             "content": (

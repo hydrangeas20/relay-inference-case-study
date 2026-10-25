@@ -1,0 +1,10 @@
+{
+  "indexing_jobs_in_trace": 4,
+  "dynamodb_items_by_status": {
+    "ok": 4
+  },
+  "worker_metrics": [
+    "relay_worker_jobs_total{status=\"ok\"} 4.0",
+    "relay_worker_chunks_total 71.0"
+  ]
+}

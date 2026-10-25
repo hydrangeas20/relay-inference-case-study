@@ -31,6 +31,7 @@ from relay.sse import chunk_content
 
 # The gateway reports the size of every prompt it builds (ADR-0005 D5).
 PROMPT_CHARS_HEADER = "X-Relay-Prompt-Chars"
+REQUEST_ID_HEADER = "X-Request-Id"  # RLY-4: request metadata travels outside the prompt
 PROMPT_CHAR_BUCKETS = (500, 1_000, 2_000, 4_000, 7_000, 10_000, 15_000, 20_000, 27_000, 40_000)
 
 LATENCY_BUCKETS = (
@@ -138,13 +139,18 @@ def create_app(
     app.state.metrics = metrics
 
     async def stream_upstream(
-        path: str, body: dict[str, Any], workload: str, prompt_chars: int
+        path: str, body: dict[str, Any], workload: str, prompt_chars: int, request_id: str
     ) -> StreamingResponse:
         received = time.perf_counter()
         metrics.prompt_chars.labels(workload).observe(prompt_chars)
         metrics.in_flight.labels(workload).inc()
         try:
-            upstream = await client.send(client.build_request("POST", path, json=body), stream=True)
+            upstream = await client.send(
+                client.build_request(
+                    "POST", path, json=body, headers={REQUEST_ID_HEADER: request_id}
+                ),
+                stream=True,
+            )
         except httpx.HTTPError as exc:
             metrics.in_flight.labels(workload).dec()
             metrics.requests.labels(workload, "upstream_unreachable").inc()
@@ -194,6 +200,7 @@ def create_app(
             language=body.language,
             prefix=body.prefix,
             context_files=[(c.path, c.content) for c in body.context_files],
+            variant=settings.prompt_template,
         )
         upstream_body = {
             "model": settings.completion_model,
@@ -202,7 +209,9 @@ def create_app(
             "temperature": 0,
             "stream": True,
         }
-        return await stream_upstream("/completions", upstream_body, "completion", len(prompt))
+        return await stream_upstream(
+            "/completions", upstream_body, "completion", len(prompt), body.request_id
+        )
 
     @app.post("/v1/agent")
     async def agent(body: AgentBody) -> StreamingResponse:
@@ -213,6 +222,7 @@ def create_app(
             language=body.language,
             file_content=body.file_content,
             question=body.question,
+            variant=settings.prompt_template,
         )
         upstream_body = {
             "model": settings.completion_model,
@@ -223,7 +233,18 @@ def create_app(
             "stream": True,
         }
         chars = sum(len(m["content"]) for m in messages)
-        return await stream_upstream("/chat/completions", upstream_body, "agent", chars)
+        return await stream_upstream(
+            "/chat/completions", upstream_body, "agent", chars, body.request_id
+        )
+
+    @app.get("/info")
+    async def info() -> dict[str, str]:
+        """What this gateway is configured to do, recorded in every run manifest."""
+        return {
+            "prompt_template": settings.prompt_template,
+            "completion_model": settings.completion_model,
+            "inference_base_url": settings.inference_base_url,
+        }
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:

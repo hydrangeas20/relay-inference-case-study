@@ -34,6 +34,7 @@ GENERATOR_MODULES: tuple[str, ...] = (
     "relay.traces.identity",
     "relay.traces.io",
     "relay.traces.schema",
+    "relay.traces.sessions",
     "relay.traffic.burstiness",
     "relay.traffic.clustering",
     "relay.traffic.generate",
