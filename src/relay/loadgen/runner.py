@@ -266,6 +266,11 @@ async def run_trace(
         [r.intended_send_s for r in records],
         [r.actual_send_s for r in records],
         replayer.cpu_samples,
+        send_lag_p99_limit_s=(
+            settings.loadgen_send_lag_p99_limit_ms / 1000
+            if settings.loadgen_send_lag_p99_limit_ms is not None
+            else None
+        ),
     )
     streamed = [r for r in records if r.workload != "indexing" and r.status == "ok"]
     recon = (

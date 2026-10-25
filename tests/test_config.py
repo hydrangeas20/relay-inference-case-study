@@ -22,3 +22,11 @@ def test_rejects_unknown_backend(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("INFERENCE_BACKEND", "vibes")
     with pytest.raises(ValueError):
         Settings(_env_file=None)
+
+
+def test_send_lag_limit_is_unset_unless_an_experiment_sets_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    assert Settings(_env_file=None).loadgen_send_lag_p99_limit_ms is None
+    monkeypatch.setenv("LOADGEN_SEND_LAG_P99_LIMIT_MS", "10")
+    assert Settings(_env_file=None).loadgen_send_lag_p99_limit_ms == 10.0

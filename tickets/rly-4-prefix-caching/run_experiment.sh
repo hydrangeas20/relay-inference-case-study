@@ -75,6 +75,8 @@ for rep in $(seq "$REP_START" $((REP_START + REPS - 1))); do
     printf '%s\n' "${cmd_line//$LLAMA_SERVER/$(basename "$LLAMA_SERVER")}" >"$dir/server/$tag.cmd"
     curl -s "http://127.0.0.1:$SERVER_PORT/metrics" >"$dir/server/$tag.metrics.before.txt"
     echo "== $name $tag (template=$template, $cacheflag)"
+    # RLY-4's validity limit (ADR-0007). It applies to this experiment only.
+    LOADGEN_SEND_LAG_P99_LIMIT_MS=10 \
     INFERENCE_BACKEND=cpu GATEWAY_URL="http://127.0.0.1:$GATEWAY_PORT" \
     INFERENCE_BASE_URL="http://127.0.0.1:$SERVER_PORT/v1" \
     INFERENCE_METRICS_URL="http://127.0.0.1:$SERVER_PORT/metrics" \

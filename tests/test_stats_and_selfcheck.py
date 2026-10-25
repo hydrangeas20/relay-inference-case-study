@@ -51,10 +51,15 @@ def test_selfcheck_valid_run() -> None:
     assert result.valid, result.reasons
 
 
+RLY4 = selfcheck.RLY4_SEND_LAG_P99_LIMIT_S
+
+
 def test_selfcheck_steady_drift_is_caught_by_send_lag() -> None:
     # 1% slow throughout: within the 2% average-rate tolerance, but by the end requests
     # leave ~100 ms late. Before the send-lag rule this run counted as valid.
-    result = selfcheck.check(_times(100, 10), _times(100, 10, 1.01), [20.0] * 10)
+    result = selfcheck.check(
+        _times(100, 10), _times(100, 10, 1.01), [20.0] * 10, send_lag_p99_limit_s=RLY4
+    )
     assert result.rate_shortfall is not None and result.rate_shortfall < 0.02
     assert not result.valid
     assert any("send lag" in r for r in result.reasons)
@@ -65,7 +70,7 @@ def test_selfcheck_burst_then_catch_up_is_invalid() -> None:
     # unchanged, so only the send-lag rule can see that the burst left late.
     intended = _times(200, 20)
     actual = [t + (0.05 if 100 <= i < 110 else 0.0) for i, t in enumerate(intended)]
-    result = selfcheck.check(intended, actual, [20.0] * 10)
+    result = selfcheck.check(intended, actual, [20.0] * 10, send_lag_p99_limit_s=RLY4)
     assert result.rate_shortfall is not None and abs(result.rate_shortfall) < 1e-9
     assert not result.valid
     assert any("send lag" in r for r in result.reasons)
@@ -86,3 +91,18 @@ def test_selfcheck_cpu_saturation_invalidates() -> None:
 def test_selfcheck_without_cpu_samples_is_invalid() -> None:
     result = selfcheck.check(_times(100, 10), _times(100, 10), [])
     assert not result.valid
+
+
+def test_send_lag_only_gates_when_an_experiment_sets_a_limit() -> None:
+    # No limit (CI, ad hoc runs): the lag is reported, the run stays valid.
+    intended = _times(100, 10)
+    actual = [t + 0.05 for t in intended]
+    unlimited = selfcheck.check(intended, actual, [20.0] * 10)
+    assert unlimited.valid and unlimited.send_lag_p99_limit_s is None
+    assert unlimited.send_lag_s["p99"] is not None and unlimited.send_lag_s["p99"] > 0.04
+    limited = selfcheck.check(intended, actual, [20.0] * 10, send_lag_p99_limit_s=RLY4)
+    assert not limited.valid and limited.send_lag_p99_limit_s == RLY4
+
+
+def test_rly4_limit_is_10_ms() -> None:
+    assert RLY4 == 0.010

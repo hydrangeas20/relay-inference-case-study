@@ -7,10 +7,14 @@ A run is invalid if the generator couldn't send requests on schedule. Two checks
    percentage of one core. If p95 CPU reaches CPU_SATURATION_PCT, the event loop
    was saturated and send times can't be trusted.
 
-3. Send lag: p99 of (actual - intended send time) must stay under SEND_LAG_P99_LIMIT_S.
-   The rate check alone compares averages, so a generator that falls behind during a
-   burst and catches up afterwards would pass it while delaying exactly the requests
-   that make up the latency tail.
+3. Send lag (only when an experiment sets a limit): p99 of (actual - intended send
+   time) must stay under that limit. The rate check alone compares averages, so a
+   generator that falls behind during a burst and catches up afterwards would pass it
+   while delaying exactly the requests that make up the latency tail.
+
+   Each experiment declares its own limit before it runs (ADR-0007): RLY-4 uses
+   RLY4_SEND_LAG_P99_LIMIT_S. With no limit set, send lag is reported but doesn't
+   decide validity, as before RLY-4.
 """
 
 from __future__ import annotations
@@ -22,7 +26,7 @@ from relay.loadgen.stats import percentiles
 
 RATE_SHORTFALL_LIMIT = 0.02  # methodology rule 4
 CPU_SATURATION_PCT = 90.0  # percent of one core; see docs/decisions/0003
-SEND_LAG_P99_LIMIT_S = 0.010  # 10 ms; provisional, to be revisited after the first GPU run
+RLY4_SEND_LAG_P99_LIMIT_S = 0.010  # 10 ms, RLY-4 only (ADR-0007); not a global default
 
 
 @dataclass
@@ -34,6 +38,7 @@ class SelfCheck:
     rate_shortfall: float | None = None
     cpu_pct: dict[str, float | None] = field(default_factory=dict)
     send_lag_s: dict[str, float | None] = field(default_factory=dict)
+    send_lag_p99_limit_s: float | None = None  # the limit this run was held to, if any
 
 
 def _rate(times: Sequence[float]) -> float | None:
@@ -47,6 +52,7 @@ def check(
     intended_send: Sequence[float],
     actual_send: Sequence[float],
     cpu_samples_pct: Sequence[float],
+    send_lag_p99_limit_s: float | None = None,
 ) -> SelfCheck:
     if len(intended_send) != len(actual_send):
         raise ValueError("intended and actual send times must align")
@@ -70,11 +76,13 @@ def check(
     else:
         result.reasons.append("too few requests to check send rate")
 
+    result.send_lag_p99_limit_s = send_lag_p99_limit_s
     lag_p99 = result.send_lag_s.get("p99")
-    if lag_p99 is not None and lag_p99 > SEND_LAG_P99_LIMIT_S:
+    limit = send_lag_p99_limit_s
+    if limit is not None and lag_p99 is not None and lag_p99 > limit:
         result.valid = False
         result.reasons.append(
-            f"send lag p99 {lag_p99 * 1000:.1f} ms exceeds {SEND_LAG_P99_LIMIT_S * 1000:.0f} ms: "
+            f"send lag p99 {lag_p99 * 1000:.1f} ms exceeds {limit * 1000:.0f} ms: "
             "requests left later than scheduled"
         )
 

@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     embedding_model: str = "relay/embed-small"
     inference_timeout_s: float = 60.0
 
+    # Load-generator send-lag validity limit in ms (methodology rule 4). Unset: send lag
+    # is reported but doesn't invalidate a run. Each experiment sets its own before it
+    # runs; RLY-4's runner sets 10 (ADR-0007).
+    loadgen_send_lag_p99_limit_ms: float | None = None
+
     # Gateway prompt template (RLY-4). The default stays Relay's original so every
     # existing run and trace keeps its meaning.
     prompt_template: PromptTemplate = "original"
