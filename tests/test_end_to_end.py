@@ -124,7 +124,18 @@ async def test_replay_is_valid_and_reconciles(
 
     summary = await run_trace(trace_path, tmp_path / "results", settings)
 
-    assert summary["valid"], summary["self_check"]["reasons"]
+    # This is a functional test: the replay must work, and the self-check must run and
+    # report. Whether this host kept send lag under the 10 ms measurement bar, or kept the
+    # generator's CPU unsaturated, depends on the machine, not the code. Those gates are
+    # tested deterministically in test_stats_and_selfcheck.py and enforced on every real
+    # run by the load generator. Asserting them here made this test fail under shared-runner
+    # CPU contention (PR #3 review: 3/23 local failures under load, all send lag).
+    check = summary["self_check"]
+    assert check["send_lag_s"]["p99"] is not None
+    assert check["cpu_pct"]["p95"] is not None
+    host_dependent = ("send lag", "generator CPU")
+    functional_failures = [r for r in check["reasons"] if not r.startswith(host_dependent)]
+    assert functional_failures == [], functional_failures
     sent = sum(w["sent"] for w in summary["workloads"].values())
     ok = sum(w["ok"] for w in summary["workloads"].values())
     assert sent == ok == len(reqs)
