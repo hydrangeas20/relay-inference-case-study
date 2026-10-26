@@ -1,5 +1,7 @@
 # RLY-4: "We turned on prefix caching. Nothing changed."
 
+> **Engineering walkthrough:** [WALKTHROUGH.md](WALKTHROUGH.md) gives the problem → hypothesis → code → tests → evidence → limitations chain, with an interview-length summary.
+
 | | |
 |---|---|
 | **Theme** | KV cache reuse |
