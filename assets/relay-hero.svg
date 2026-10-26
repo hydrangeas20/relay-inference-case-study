@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">Relay — Engineering inference at scale</title>
+  <desc id="desc">Pastel mint, aqua and ice-blue banner with a routing gateway distributing requests to inference workers and returning responses.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8fff3"/><stop offset=".52" stop-color="#d9f8f6"/><stop offset="1" stop-color="#e4f0ff"/></linearGradient>
+    <linearGradient id="ink" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#174d55"/><stop offset="1" stop-color="#286e8a"/></linearGradient>
+    <linearGradient id="node" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffff" stop-opacity=".94"/><stop offset="1" stop-color="#e9f9ff" stop-opacity=".9"/></linearGradient>
+    <filter id="shadow" x="-30%" y="-50%" width="160%" height="200%"><feDropShadow dx="0" dy="7" stdDeviation="10" flood-color="#2c8290" flood-opacity=".12"/></filter>
+    <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.1" fill="#5ba9b2" opacity=".16"/></pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10Z" fill="#4b9eaa"/></marker>
+  </defs>
+  <rect width="1200" height="360" rx="24" fill="url(#bg)"/>
+  <rect width="1200" height="360" rx="24" fill="url(#dots)"/>
+  <circle cx="1048" cy="60" r="158" fill="#b9eaf4" opacity=".28"/><circle cx="806" cy="328" r="152" fill="#a6f0d7" opacity=".24"/>
+  <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <rect x="64" y="89" width="51" height="51" rx="15" fill="#ffffff" opacity=".85" stroke="#a4dcd8"/>
+    <path d="M79 113h22m-8-8 8 8-8 8M79 127h22" fill="none" stroke="#2d8895" stroke-width="3.3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="64" y="207" font-size="88" font-weight="760" letter-spacing="-4" fill="url(#ink)">Relay</text>
+    <text x="68" y="252" font-size="24" font-weight="450" fill="#39727c">Engineering inference at scale</text>
+    <text x="69" y="292" font-size="14" letter-spacing="2.2" font-weight="650" fill="#568b91">ROUTING  ·  CACHING  ·  MEASUREMENT</text>
+  </g>
+  <g fill="none" stroke="#4b9eaa" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" opacity=".8">
+    <path d="M689 125 C723 125 728 178 765 178" marker-end="url(#arrow)"/>
+    <path d="M689 222 C723 222 728 178 765 178" marker-end="url(#arrow)"/>
+    <path d="M858 178 C897 178 895 101 944 101" marker-end="url(#arrow)"/>
+    <path d="M858 178 H944" marker-end="url(#arrow)"/>
+    <path d="M858 178 C897 178 895 255 944 255" marker-end="url(#arrow)"/>
+    <path d="M1026 255 C1091 255 1091 296 1114 296" stroke-dasharray="5 7" marker-end="url(#arrow)"/>
+  </g>
+  <g filter="url(#shadow)" font-family="Inter, ui-sans-serif, system-ui, sans-serif" text-anchor="middle">
+    <rect x="604" y="97" width="92" height="56" rx="14" fill="url(#node)" stroke="#93d4d3"/>
+    <rect x="604" y="194" width="92" height="56" rx="14" fill="url(#node)" stroke="#93d4d3"/>
+    <rect x="765" y="144" width="96" height="68" rx="17" fill="#ddf9f4" stroke="#56b6ae" stroke-width="2"/>
+    <rect x="944" y="74" width="106" height="54" rx="14" fill="url(#node)" stroke="#9bbfdf"/>
+    <rect x="944" y="151" width="106" height="54" rx="14" fill="url(#node)" stroke="#9bbfdf"/>
+    <rect x="944" y="228" width="106" height="54" rx="14" fill="url(#node)" stroke="#9bbfdf"/>
+    <rect x="1087" y="278" width="72" height="36" rx="12" fill="#ffffff" stroke="#93d4d3"/>
+  </g>
+  <g font-family="Inter, ui-sans-serif, system-ui, sans-serif" fill="#245d6c" text-anchor="middle">
+    <text x="650" y="120" font-size="12" font-weight="700">Request</text><text x="650" y="136" font-size="10">A</text>
+    <text x="650" y="217" font-size="12" font-weight="700">Request</text><text x="650" y="233" font-size="10">B</text>
+    <text x="813" y="174" font-size="14" font-weight="750">Routing</text><text x="813" y="190" font-size="11">gateway</text>
+    <text x="997" y="97" font-size="12" font-weight="700">Worker 01</text><text x="997" y="112" font-size="10">inference</text>
+    <text x="997" y="174" font-size="12" font-weight="700">Worker 02</text><text x="997" y="189" font-size="10">inference</text>
+    <text x="997" y="251" font-size="12" font-weight="700">Worker 03</text><text x="997" y="266" font-size="10">inference</text>
+    <text x="1123" y="300" font-size="10" font-weight="700">Response</text>
+  </g>
+</svg>

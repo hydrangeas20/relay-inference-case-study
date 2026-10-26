@@ -1,99 +1,81 @@
-# Relay: an inference engineering case study
+<div align="center">
 
-A forward-deployed engineering engagement with a fictional customer, run like a real one: reproduce the problem, measure it, fix one thing, measure again, and say exactly what the evidence does and doesn't show.
+![Relay — Engineering inference at scale](assets/relay-hero.svg)
 
-**Relay** is a fictional AI coding assistant with 2M registered users. It serves a fine-tuned ~7B code model and a small embedding model. It's missing its latency targets while its GPU bill climbs, and a team plan launching in six weeks is expected to double traffic.
+### Engineering Inference at Scale
 
----
+**A reproducible inference engineering case study — from a fictional customer problem to real code, tests, and measurements.**
 
-## First result: RLY-4, "We turned on prefix caching. Nothing changed."
+Python · FastAPI · llama.cpp · Prometheus · Docker Compose · AWS (emulated)
 
-> **Moving one line of per-request metadata out of the prompt let the prefix cache serve 83% of prompt tokens instead of 0.5%. On the same requests, median time to first token fell 3.9x (2.52 s → 0.65 s) and p95 fell 2.9x.**
->
-> Measured on a real inference engine (llama.cpp) running on CPU, 3 repetitions, the same replayed trace in every run. Source `cpu`: these are not GPU or vLLM latencies. "3.9x" is the ratio of median TTFT (median of the per-run p50s); per request, the paired median ratio is 0.22, and 0.21–0.22 in each of the 3 repetitions. The milliseconds don't carry over to a GPU. The cache share probably won't carry over unchanged either: vLLM caches whole fixed-size token blocks, evicts under memory pressure, and Relay's real model has its own tokenizer, so it has to be re-measured there.
+[![CI](https://github.com/hydrangeas20/relay-inference-case-study/actions/workflows/ci.yml/badge.svg)](https://github.com/hydrangeas20/relay-inference-case-study/actions/workflows/ci.yml)
+[![Stack smoke](https://github.com/hydrangeas20/relay-inference-case-study/actions/workflows/stack.yml/badge.svg)](https://github.com/hydrangeas20/relay-inference-case-study/actions/workflows/stack.yml)
 
-**The bug:** Relay's template puts `[relay request_id=… ts=…]` at the top of every prompt. A prefix cache reuses tokens only up to the first difference, so the header made every prompt unique within its first 10 tokens. Relay turned caching on, and nothing changed.
+[Start here](#start-here) · [Investigations](#engineering-investigations) · [Results](#first-measured-result) · [Architecture](#architecture) · [Setup](#quick-start) · [Reproduce](#reproduce-the-prefix-caching-experiment) · [Evidence](#evidence-and-methodology) · [Limitations](#limitations-and-next-steps)
 
-**The fix:** request metadata travels as an `X-Request-Id` header instead of prompt text. Follow-up requests in an editing session then reuse the whole previous prompt.
-
-**The controls:**
-- **Cache on vs off:** with the original template, cache on was no faster than cache off.
-- **No repeated context:** when context doesn't repeat, the fix gains only about 10%.
-- **Predictions first:** predictions and falsification thresholds were committed before any full run was read (a disclosed 6-request pilot informed them). Four held cleanly (P1, P2, P3, P6). The two control predictions did not: P5 was falsified on the planned runs, and P4 missed its predicted band. Two extra control runs, added after that result was seen, moved both back inside their bands; they're reported as post hoc. With the original template, cache on was about 9% *slower* than cache off. The header's 43 extra tokens explain about a quarter of that; the rest is unexplained. See [the RLY-4 write-up](tickets/rly-4-prefix-caching/).
+</div>
 
 ---
 
-## What exists today
+## Start here
 
-| Area | State | Evidence |
-| --- | --- | --- |
-| Gateway, open-loop load generator, indexing worker | Implemented | 284 tests pass, 3 skipped (`make check`). Run end to end over real sockets against llama.cpp and an AWS API emulator (`scripts/verify_local_stack.sh`, results in `results/phase1-verification/`) |
-| Run validity and provenance | Implemented | Self-check (send rate, generator CPU, and a send-lag p99 limit each experiment sets: 10 ms for RLY-4), TTFT reconciliation across layers, a manifest in every summary |
-| RLY-4 prefix caching | **Measured on CPU** (`cpu`) | 15 runs plus 2 extra control runs, raw records committed: [`results/rly-4/`](results/rly-4/) |
-| Docker Compose stack (simulator, Floci, Prometheus, Grafana) | Implemented; **smoke-tested end to end in CI** (`sim`) | [Stack smoke workflow](.github/workflows/stack.yml) |
-| Traffic model (Phase 2) | Implemented, **not validated out of sample** | [Traffic model status](#traffic-model-status) |
-| Real-GPU baseline, quality evals, cost model | **Not started** | No `gpu` result exists yet |
-| RLY-0 to RLY-3, RLY-5 to RLY-7 | Planned | Ticket briefs in [`tickets/`](tickets/) |
+**Relay is a fictional AI coding-assistant company with a real engineering investigation behind it.** The customer scenario imagines 2 million registered users, slow responses, and rising GPU costs. **Those users and production traffic are fictional.** The gateway, load generator, indexing worker, tests, and controlled CPU inference experiments in this repository are implemented software.
 
----
+The first investigation asks a simple question: **Why didn't enabling prefix caching make responses faster?** The answer was a changing request identifier placed at the beginning of every prompt. Moving that identifier into request metadata allowed the inference engine to reuse previous work.
 
-## The engagement
+**For readers:** [See how RLY-4 was investigated](tickets/rly-4-prefix-caching/) · [Inspect implementation PR #3](https://github.com/hydrangeas20/relay-inference-case-study/pull/3) · [Read the experimental evidence](results/rly-4/)
 
-**Goal:** hit Relay's SLOs at launch-scale traffic, cut cost per request by at least 50%, and show no measurable drop in quality. None of these goals has been met or measured yet. They're the engagement's targets, not results.
+## First measured result
 
-| Workload           | What it does                               | Model                     | What matters most                |
-| ------------------ | ------------------------------------------ | ------------------------- | -------------------------------- |
-| Inline completions | Suggests code as the user types            | Fine-tuned ~7B code model | Time to first token              |
-| Agent chat         | Answers questions and calls tools via JSON | Same base model           | Valid structured output, latency |
-| Repo indexing      | Embeds users' codebases nightly            | Small embedding model     | Throughput and cost              |
+**RLY-4: “We turned on prefix caching. Nothing changed.”**
 
-### SLOs (targets, not yet measured)
+| Controlled CPU experiment  | Original template | Fixed template |
+| -------------------------- | ----------------: | -------------: |
+| Median time to first token |        **2.52 s** |     **0.65 s** |
+| p95 time to first token    |            5.80 s |         2.01 s |
+| Prefix-cache reuse         |              0.5% |      **82.9%** |
+| Server busy time           |             52.4% |          21.5% |
 
-| SLO                                                    | Target                                                 |
-| ------------------------------------------------------ | ------------------------------------------------------ |
-| Completions p95 time to first token (TTFT), at peak    | < 300 ms                                               |
-| Agent chat invalid tool-call rate, at peak concurrency | < 0.5%                                                 |
-| Nightly indexing                                       | Done before 06:00 ET, no impact on interactive latency |
-| Completion quality                                     | Within 1 point of the FP16 baseline eval               |
-| Cost per 1K requests, at launch-scale traffic          | ≥ 50% reduction                                        |
+**3.9× lower median time to first token** in the controlled CPU experiment. The same 48-request editing-session trace was replayed across three valid repetitions per main configuration. These measurements use **llama.cpp on CPU with seeded synthetic model weights**. They are **not** production, GPU, vLLM, quality, or cost-savings results. A fresh quiet-machine confirmation and GPU validation remain outstanding.
 
-These are initial targets, to be revised against a measured GPU baseline. Full client brief: [`docs/case-study.md`](docs/case-study.md).
+**What changed:** Request-specific ID/timestamp metadata moved from the beginning of the model prompt into the `X-Request-Id` HTTP header. Repeated context could then be reused by the prefix cache.
 
-### Tickets
+\***\*Investigation approach:** Each engineering investigation follows a consistent process: **problem → hypothesis → code change → tests → measurements → limitations**. The [RLY-4 investigation](tickets/rly-4-prefix-caching/) provides a complete example of this methodology.
 
-| ID                                         | Customer complaint                                  | Theme                           | Status  |
-| ------------------------------------------ | --------------------------------------------------- | ------------------------------- | ------- |
-| [RLY-0](tickets/rly-0-observability/)      | "We don't even know what's wrong"                   | Observability                   | Planned |
-| [RLY-1](tickets/rly-1-peak-latency/)       | "Completions feel sluggish at peak"                 | Batching and concurrency        | Planned |
-| [RLY-2](tickets/rly-2-cold-starts/)        | "Users hit 30-second waits every morning"           | Cold starts and autoscaling     | Planned |
-| [RLY-3](tickets/rly-3-gpu-cost/)           | "Our GPU bill doubled"                              | Right-sizing and quantization   | Planned |
-| [RLY-4](tickets/rly-4-prefix-caching/)     | "We turned on prefix caching. Nothing changed."     | KV cache reuse                  | **Mechanism measured on CPU**; GPU re-measurement pending |
-| [RLY-5](tickets/rly-5-structured-output/)  | "Tool calls return broken JSON under load"          | Structured output               | Planned |
-| [RLY-6](tickets/rly-6-quality-regression/) | "Quality dropped last Tuesday and nobody knows why" | Evals and safe rollout          | Planned |
-| [RLY-7](tickets/rly-7-workload-isolation/) | "Nightly indexing is slowing down daytime users"    | Batch vs. interactive isolation | Planned |
-
-The tickets are deliberately coupled. For example, the quantization win in RLY-3 sets up the regression in RLY-6, and the minimum replicas that fix RLY-2 cost money that RLY-3 is trying to save.
+[Full RLY-4 investigation](tickets/rly-4-prefix-caching/) · [Predictions](tickets/rly-4-prefix-caching/PREDICTIONS.md) · [Raw results](results/rly-4/) · [Independent recomputation](tickets/rly-4-prefix-caching/review/recompute.py)
 
 ---
 
-## What's real, what's simulated, what's emulated
+## How to review this repository
 
-Every result file carries a `source` tag. All RLY-4 numbers in this README are `cpu`; the Docker smoke test is `sim`.
+| Your role                                    | Suggested path                                                                                                                                                                                                    |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Project overview· 3 minutes**              | Read [Start here](#start-here), [First measured result](#first-measured-result), and the diagram below.                                                                                                           |
+| **Engineering Investigations· 5–10 minutes** | Choose an item in [Engineering investigations](#engineering-investigations), follow its ticket write-up, then open the implementation PR and evidence.                                                            |
+| **Technical Deep Dive· 15–30 minutes**       | Inspect [architecture](docs/architecture.md), [PR #3](https://github.com/hydrangeas20/relay-inference-case-study/pull/3), [tests](tests/), [methodology](docs/methodology.md), and [raw records](results/rly-4/). |
 
-| Source | What runs | Used for | What it can prove |
-| --- | --- | --- | --- |
-| `gpu` | vLLM on a rented GPU with the real model | Baseline curves, every quality claim | Ground truth at single-GPU scale. **No `gpu` results exist yet** |
-| `cpu` | llama.cpp `llama-server` on CPU ([ADR-0007](docs/decisions/0007-cpu-engine-and-rly4-method.md)) | Engine mechanisms that don't need a GPU to exist, such as prefix caching | That a mechanism works on a real engine, and how much work it saves on that engine. Not GPU latency, and not a GPU cache hit rate |
-| `sim` | [llm-d-inference-sim](https://github.com/llm-d/llm-d-inference-sim) | Plumbing, autoscaling logic, launch-scale traffic | That the system works end to end. Not inference performance: the simulator's latencies are inputs |
-| `projection` | Capacity model built from measured per-GPU curves | Launch-scale capacity and cost | A projection, labelled as one |
-| `floci` | [Floci](https://github.com/floci-io/floci) AWS emulator (S3, SQS, DynamoDB) | Customer-side plumbing | That the integration works. Nothing about speed |
+## Engineering investigations
 
-Two rules follow:
+**Only RLY-4 has a measured inference optimization.** Other customer tickets are planned; the foundational infrastructure and traffic model are separate engineering workstreams.
 
-1. **Quality claims only come from a real model.** The simulator models speed, not output. RLY-4's CPU model has synthetic weights, so it can't support any quality claim either.
-2. **"2M users" is a traffic model, not a load test.** Nothing here has been load-tested at Relay's scale. Launch-scale numbers will be projections, labelled as such.
+| Ticket                                     | Customer problem                                     | Status                                        | How to inspect                                                                                                                                                    |
+| ------------------------------------------ | ---------------------------------------------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **[RLY-4](tickets/rly-4-prefix-caching/)** | “We turned on prefix caching. Nothing changed.”      | **Measured on CPU**; confirmation/GPU pending | [Walkthrough and report](tickets/rly-4-prefix-caching/) · [PR #3](https://github.com/hydrangeas20/relay-inference-case-study/pull/3) · [Evidence](results/rly-4/) |
+| [RLY-0](tickets/rly-0-observability/)      | “We don't even know what's wrong.”                   | Planned                                       | Ticket brief                                                                                                                                                      |
+| [RLY-1](tickets/rly-1-peak-latency/)       | “Completions feel sluggish at peak.”                 | Planned                                       | Ticket brief                                                                                                                                                      |
+| [RLY-2](tickets/rly-2-cold-starts/)        | “Users hit 30-second waits every morning.”           | Planned                                       | Ticket brief                                                                                                                                                      |
+| [RLY-3](tickets/rly-3-gpu-cost/)           | “Our GPU bill doubled.”                              | Planned                                       | Ticket brief                                                                                                                                                      |
+| [RLY-5](tickets/rly-5-structured-output/)  | “Tool calls return broken JSON under load.”          | Planned                                       | Ticket brief                                                                                                                                                      |
+| [RLY-6](tickets/rly-6-quality-regression/) | “Quality dropped last Tuesday and nobody knows why.” | Planned                                       | Ticket brief                                                                                                                                                      |
+| [RLY-7](tickets/rly-7-workload-isolation/) | “Nightly indexing is slowing down daytime users.”    | Planned                                       | Ticket brief                                                                                                                                                      |
 
-Details: [`docs/methodology.md`](docs/methodology.md).
+### Foundation and traffic-model engineering
+
+- **[PR #1 — Foundation](https://github.com/hydrangeas20/relay-inference-case-study/pull/1):** gateway, load generator, worker, reproducible corpus, tests, and initial stack.
+- **[PR #2 — Traffic model](https://github.com/hydrangeas20/relay-inference-case-study/pull/2):** development-data fitting and validation attempts. **Not validated out of sample.** The protected Wednesday holdout remains untouched, and several model-selection decisions remain unresolved.
+- **[PR #3 — Prefix-caching experiment](https://github.com/hydrangeas20/relay-inference-case-study/pull/3):** implemented change, controlled runs, tests, review, and committed evidence.
+
+For an interview, follow **problem → hypothesis → code change → tests → measurements → limitations**. The [RLY-4 ticket](tickets/rly-4-prefix-caching/) is the primary starting point.
 
 ---
 
@@ -101,168 +83,109 @@ Details: [`docs/methodology.md`](docs/methodology.md).
 
 ```mermaid
 flowchart LR
-    TR["Trace files<br/>(pinned corpus, seeded,<br/>content-addressed)"] --> LG
-
-    LG["Load generator<br/>open-loop, self-checking,<br/>run manifest"]
-
-    subgraph RELAY["Relay services"]
-        GW["Gateway (FastAPI)<br/>builds prompts from Relay's<br/>templates, streams SSE"]
-        W["Indexing worker<br/>bounded concurrency"]
-    end
-
-    subgraph AWS["Customer AWS (emulated)"]
-        Q["SQS"]
-        DB["DynamoDB"]
-    end
-
-    subgraph INF["OpenAI-compatible inference (one setting switches backend)"]
-        CPU["llama.cpp on CPU<br/>source: cpu"]
-        SIM["llm-d-inference-sim<br/>source: sim"]
-        GPU["vLLM on GPU<br/>source: gpu (planned)"]
-    end
-
-    LG -- "/v1/complete, /v1/agent" --> GW
-    LG -- "indexing jobs" --> Q --> W
-    GW --> CPU & SIM & GPU
-    W --> CPU & SIM & GPU
-    W --> DB
-
-    LG --> RES["results/*.summary.json<br/>+ raw per-request records"]
-    CPU & SIM & GPU -. "/metrics" .-> RES
-    GW -. "/metrics, /info" .-> RES
+  T["Pinned trace corpus"] --> L["Open-loop load generator"]
+  L -->|"Completion / agent requests"| G["FastAPI gateway"]
+  L -->|"Indexing jobs"| Q["SQS (emulated)"]
+  Q --> W["Indexing worker"]
+  W --> D["DynamoDB (emulated)"]
+  G --> I["Inference backend"]
+  W --> I
+  I --> C["llama.cpp CPU (measured)"]
+  I --> S["Inference simulator (stack smoke)"]
+  I -.-> V["vLLM GPU (planned)"]
+  G -.-> M["Metrics and run manifests"]
+  L -.-> M
 ```
 
-- **Measured at up to three layers.** The load generator measures TTFT at the client, the gateway measures it upstream, and vLLM-style servers report their own histogram. A run checks that the layers are consistent. llama.cpp exports no TTFT histogram, so RLY-4 reconciles the client and gateway layers only.
-- **Self-checking.** A run is marked invalid if the generator's send rate fell short, its CPU saturated, or (when the experiment sets a limit) its send lag exceeded that limit.
-- **Run manifest.** Every summary records the commit, the environment, the gateway's actual template setting, and the inference server's build and model hash.
+The load generator replays pinned traces, measures client latency, and rejects runs that fail configured validity checks. The gateway constructs prompts and streams responses; the worker handles indexing traffic. Prometheus and Grafana support the Docker stack. See [architecture details](docs/architecture.md).
 
-Details: [`docs/architecture.md`](docs/architecture.md).
+## Quick start
 
----
-
-## Quickstart
-
-Requires [uv](https://docs.astral.sh/uv/) and Python 3.11+. Nothing below needs a GPU, an AWS account or an API key.
+**Requirements:** Python 3.11+, [`uv`](https://docs.astral.sh/uv/), Git. The checks below do not require an API key, AWS account, or GPU.
 
 ```bash
 git clone https://github.com/hydrangeas20/relay-inference-case-study.git
 cd relay-inference-case-study
-make setup   # Python deps + the pinned code corpus (8 repos, hash-verified)
-make check   # ruff, mypy --strict, pytest
+make setup
+make check
 ```
 
-**Full Docker stack** (simulator, Floci, gateway, worker, Prometheus, Grafana):
+`make setup` installs dependencies and retrieves the pinned, hash-verified code corpus. `make check` runs the repository's linting, type checks, and tests.
+
+### Run the simulated Docker stack
+
+**Additional requirement:** Docker with Compose.
 
 ```bash
-make up && make run   # replays traces/smoke.jsonl; results land in results/
+make up
+make run
 ```
 
-**Verified in CI.** The [Stack smoke workflow](.github/workflows/stack.yml) starts the full stack on a clean GitHub runner and replays the smoke trace through it. It first passed on PR #3. Without Docker, `LLAMA_SERVER=… scripts/verify_local_stack.sh` (after `make rly4-model`) runs the gateway, the worker and the load generator over real sockets, against llama.cpp and an AWS API emulator.
+The stack includes the inference simulator, AWS emulator (Floci), gateway, worker, Prometheus, and Grafana. This checks integration and plumbing; **simulator timing is not measured inference latency**.
 
-**Reproduce RLY-4** (real engine, CPU only, Linux with `taskset`, about an hour on 2 cores; run `make setup` first). Details are in [the ticket](tickets/rly-4-prefix-caching/).
+### CI and reproducibility
+
+- [**CI**](.github/workflows/ci.yml) — runs on pushes to `main` and pull requests: Ruff lint/format, strict mypy, pytest excluding integration tests, and Docker Compose configuration validation.
+- [**Stack smoke**](.github/workflows/stack.yml) — runs on pull requests or manual dispatch: boots the Docker stack and replays completion, agent, and indexing requests end to end.
+- [**Run manifests and provenance**](docs/methodology.md) — preserve environment, model/build hashes, source tags, configuration, and validity outcomes.
+
+## Reproduce the prefix-caching experiment
+
+**CPU-only; Linux with `taskset`; approximately one hour on two cores.** Run `make setup` first. This uses a pinned llama.cpp version and a synthetic-weight Qwen2-architecture model with a real tokenizer.
 
 ```bash
-git clone https://github.com/ggml-org/llama.cpp ../llama.cpp      # beside this repo, not inside it
+git clone https://github.com/ggml-org/llama.cpp ../llama.cpp
 git -C ../llama.cpp checkout 2280f0fd163b03d4331d49e08460f66502e35854
 cmake -S ../llama.cpp -B ../llama.cpp/build -DLLAMA_CURL=OFF -DLLAMA_OPENSSL=OFF
 cmake --build ../llama.cpp/build --target llama-server -j
-make rly4-model LLAMA_CPP=../llama.cpp                       # synthetic-weight Qwen2 GGUF (sha256 4ecee853…)
+
+make rly4-model LLAMA_CPP=../llama.cpp
 make rly4-run LLAMA_SERVER=$PWD/../llama.cpp/build/bin/llama-server REPS=3
-make rly4-report                                             # results/rly-4/report.md
+make rly4-report
 ```
 
----
+The experiment's design, controls, run exclusions, and interpretation are documented in [RLY-4](tickets/rly-4-prefix-caching/). Results are written to `results/rly-4/`.
 
-## RLY-4 in detail
+## Evidence and methodology
 
-**Question:** is the per-request header the reason prefix caching did nothing, and how much time to first token (TTFT) does removing it recover?
+| Evidence type                           | Where to find it                                                           |
+| --------------------------------------- | -------------------------------------------------------------------------- |
+| Hypotheses and preregistered thresholds | [PREDICTIONS.md](tickets/rly-4-prefix-caching/PREDICTIONS.md)              |
+| Raw CPU experiment records              | [results/rly-4/](results/rly-4/)                                           |
+| Generated report                        | [results/rly-4/report.md](results/rly-4/report.md)                         |
+| Independent recomputation               | [review/recompute.py](tickets/rly-4-prefix-caching/review/recompute.py)    |
+| Implementation and code review          | [PR #3](https://github.com/hydrangeas20/relay-inference-case-study/pull/3) |
+| Experiment design decision              | [ADR-0007](docs/decisions/0007-cpu-engine-and-rly4-method.md)              |
+| General measurement methodology         | [docs/methodology.md](docs/methodology.md)                                 |
+| Traffic-model validation history        | [docs/validation/](docs/validation/)                                       |
 
-**Hypothesis and falsification thresholds:** committed before any full run was read, in [PREDICTIONS.md](tickets/rly-4-prefix-caching/PREDICTIONS.md).
+**Source labels matter:** `cpu` means real llama.cpp CPU execution; `sim` means simulated inference; `gpu` is planned, not measured; `projection` means model-derived estimates, not observations; `floci` means emulated AWS integration.
 
-| Design choice | What was done |
-| --- | --- |
-| Engine | llama.cpp `llama-server` at commit `2280f0f`, 1 slot, 1 thread, pinned to its own core. Restarted for every run, so every run starts with a cold cache |
-| Model | Qwen2 architecture with seeded random weights and the real Qwen2 tokenizer ([why](docs/decisions/0007-cpu-engine-and-rly4-method.md)). The model file's hash is in every manifest |
-| Workload | 8 editing sessions × 6 inline-completion requests over real source files from the pinned corpus. Prompts are 1,470–2,400 tokens (median 1,780). The cursor advances 80–240 characters between requests |
-| Arrivals | Open-loop Poisson at 0.25 requests/s. The identical trace file is replayed in every run |
-| Changed | One factor at a time: the gateway template (`original` / `metadata`) and the server prompt cache (on / off) |
-| Negative control | The same arrival times and cursor positions, but no file repeats, so there's no shared context to reuse |
-| Validity | Runs failing the load generator's self-check (including RLY-4's 10 ms send-lag limit) are excluded and listed. The tables below are generated from the committed results by [`analyze.py`](tickets/rly-4-prefix-caching/analyze.py); the mechanism figures come from the review's independent [`recompute.py`](tickets/rly-4-prefix-caching/review/recompute.py) |
+## Limitations and next steps
 
-Median across valid runs (min–max). TTFT and E2E are client-measured, in ms, source `cpu`. Cache share comes from the server's own counters.
+- The fictional 2M-user scenario is **not** evidence of real users, production deployment, or production-scale load testing.
+- RLY-4 used a **CPU engine and synthetic weights**, so it cannot support GPU latency or model-quality claims.
+- The experiment used one inference slot and a controlled editing-session workload; cache eviction and multi-replica routing remain untested.
+- Four of 17 experimental runs failed the configured send-lag validity gate and remain preserved in the evidence. The original failed/missed predictions and post hoc controls are disclosed.
+- The Phase 2 traffic model is **not validated out of sample**; its Wednesday holdout remains protected.
+- Real-GPU baseline, quality evaluation, cost model, and the other customer tickets are not complete.
+- The customer targets — including p95 TTFT below 300 ms and at least 50% lower cost per 1,000 requests — are **targets, not achieved results**.
 
-| Configuration | Valid runs | TTFT p50 | TTFT p95 | TTFT p99 | E2E p50 | Cache share | Server busy | Errors |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Sessions · original template · cache on (Relay today) | 3/3 | 2,524 (2,514–2,671) | 5,799 (5,752–5,964) | 7,473 (7,443–7,657) | 2,873 (2,862–3,001) | 0.5% (0.5%–0.5%) | 52.4% (52.3%–52.7%) | 0 |
-| Sessions · fixed template · cache on (the fix) | 3/3 | 654 (622–686) | 2,013 (1,988–2,096) | 2,560 (2,540–2,577) | 991 (932–1,022) | 82.9% (82.9%–82.9%) | 21.5% (21.4%–22.0%) | 0 |
-| Sessions · fixed template · cache off (control) | 3/5 | 2,292 (2,281–2,314) | 5,234 (5,217–5,312) | 6,213 (6,198–6,483) | 2,620 (2,609–2,653) | 0.0% (0.0%–0.0%) | 48.9% (48.8%–49.0%) | 0 |
-| No shared context · original · cache on (negative control) | 2/3 | 2,388 (2,347–2,429) | 6,611 (6,207–7,015) | 7,793 (7,557–8,028) | 2,726 (2,665–2,787) | 0.5% (0.5%–0.5%) | 49.3% (48.5%–50.1%) | 0 |
-| No shared context · fixed · cache on (negative control) | 2/3 | 2,135 (2,101–2,170) | 5,636 (5,533–5,738) | 6,579 (6,318–6,841) | 2,444 (2,388–2,500) | 4.0% (4.0%–4.0%) | 46.5% (45.5%–47.5%) | 0 |
-
-**Paired comparisons** (same requests, median TTFT per request across runs)
-
-| Question | Requests | Median TTFT ratio (p10–p90) | Faster | Follow-ups only: median ratio |
-| --- | --- | --- | --- | --- |
-| Does the template fix cut TTFT? | 48 | 0.22 (0.09–0.47) | 100% | 0.21 |
-| Is the prefix cache what delivers the gain? | 48 | 0.24 (0.10–0.52) | 94% | 0.23 |
-| Did turning the cache on do anything with the original template? | 48 | 1.09 (0.99–1.34) | 12% | 1.08 |
-| Does the fix help when context doesn't repeat? (negative control) | 48 | 0.90 (0.78–1.02) | 83% | 0.90 |
-
-**Excluded runs.** Four of 17 runs failed the send-lag self-check (p99 12–24 ms against a 10 ms limit). They're kept on disk and listed in [report.md](results/rly-4/report.md).
-
-**Post hoc runs.** The cache-off row and the "did turning the cache on do anything" comparison include two extra cache-off runs, added after the analysis had been read. On the planned runs alone (one valid cache-off run), that comparison is 1.117, and the cache-off p50 is 2,281 ms. The [review](tickets/rly-4-prefix-caching/review/) reports every result with and without them.
-
-**Mechanism:**
-- **Follow-ups:** with the fix, a follow-up request evaluates a median of 40 tokens (22–135), and its median TTFT ratio is 0.21. Server-side prefill time, which excludes queueing, fell to 0.24 of the original per request.
-- **First requests:** the first request of a session still prefills the whole file. It can reuse only the system prompt, so its gain (median ratio 0.71) comes mostly from shorter queues.
-- **Server load:** server busy time on the same 48 requests fell from 52% to 21.5%.
-
-**Limits:**
-- CPU timings, not GPU timings.
-- Synthetic weights, so no quality signal.
-- One session at a time on a one-slot server, so no eviction or multi-replica routing.
-- 48 requests per run, so p99 isn't used for any conclusion.
-
-Full write-up: [`tickets/rly-4-prefix-caching/`](tickets/rly-4-prefix-caching/).
+Next: independent quiet-machine confirmation, GPU remeasurement, quality evaluation, and further tickets. See [the case-study brief](docs/case-study.md) for the full scope.
 
 ---
 
-## Traffic model status
+## Repository guide
 
-Phase 2 fitted a traffic model (daily envelope, burstiness, prompt sizes) to Azure's public 2024 code trace and tested it against preregistered criteria. **The burstiness model is not validated out of sample**:
+| Folder                     | Purpose                                                |
+| -------------------------- | ------------------------------------------------------ |
+| [`src/relay/`](src/relay/) | Gateway, load generator, worker, traces, traffic model |
+| [`tickets/`](tickets/)     | Engineering investigations and ticket briefs           |
+| [`results/`](results/)     | Measured records and reports                           |
+| [`traces/`](traces/)       | Replayable workload traces                             |
+| [`corpus/`](corpus/)       | Pinned source-code corpus and hashes                   |
+| [`docs/`](docs/)           | Architecture, methodology, decisions, validation       |
+| [`analysis/`](analysis/)   | Traffic-model analysis                                 |
+| [`tests/`](tests/)         | Automated verification                                 |
 
-- **Cycle 1 failed.** Both candidates overestimated queue p99 by about 1.3–1.5x.
-- **Cycle 2's Candidate D passed internally.** It passed 3 of 4 gating folds, but on development data, under a validator that generally misses biases near 1.15x. That isn't out-of-sample evidence, and it isn't a claim of close fidelity.
-- **Wednesday holdout untouched.** The protected Wednesday holdout has never been read.
-
-The full, append-only record is in [`docs/validation/`](docs/validation/). RLY-4 doesn't depend on any of this: it uses Poisson arrivals.
-
----
-
-## Repository layout
-
-```
-.
-├── src/relay/            gateway, worker, load generator, traces, traffic model, manifest
-├── tickets/              one folder per ticket: brief, experiment code, write-up
-├── results/              run summaries and raw records (rly-4/ holds the RLY-4 runs)
-├── traces/               replayable, content-addressed trace files
-├── corpus/               pinned repos + per-file hashes used to build prompts
-├── docs/                 client brief, methodology, architecture, ADRs, validation records
-├── analysis/             Phase 2 traffic-model fitting and validation
-└── tests/                unit and real-socket tests (no GPU, no containers)
-```
-
----
-
-## Next steps
-
-1. **Re-measure RLY-4 on a GPU with vLLM** (`gpu`): same traces, same template switch, vLLM's prefix-cache metrics. This turns a share of prefill saved into milliseconds on Relay's real setup.
-2. **Real-GPU baseline**: TTFT vs request rate, 3 repetitions, Poisson arrivals. It's the input to RLY-1, RLY-3 and capacity planning.
-3. **Many users, one cache**: sessions interleaved across many users, cache eviction, and whether replicas need prefix-aware routing to keep hit rates at scale.
-
----
-
-## About
-
-Built by [hydrangeas20](https://github.com/hydrangeas20). Relay is a fictional customer; every finding reported here comes from experiments run in this repository, and the raw records are committed beside the conclusions.
+**Relay's central principle:** make one engineering change, measure it against controlled evidence, and state precisely what the result does — and does not — establish.
