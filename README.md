@@ -75,7 +75,7 @@ The first investigation asks a simple question: **Why didn't enabling prefix cac
 - **[PR #2 — Traffic model](https://github.com/hydrangeas20/relay-inference-case-study/pull/2):** development-data fitting and validation attempts. **Not validated out of sample.** The protected Wednesday holdout remains untouched, and several model-selection decisions remain unresolved.
 - **[PR #3 — Prefix-caching experiment](https://github.com/hydrangeas20/relay-inference-case-study/pull/3):** implemented change, controlled runs, tests, review, and committed evidence.
 
-For an interview, follow **problem → hypothesis → code change → tests → measurements → limitations**. The [RLY-4 ticket](tickets/rly-4-prefix-caching/) is the primary starting point.
+To review a change end to end, follow **problem → hypothesis → code change → tests → measurements → limitations**. The [RLY-4 ticket](tickets/rly-4-prefix-caching/) is the primary starting point.
 
 ---
 
