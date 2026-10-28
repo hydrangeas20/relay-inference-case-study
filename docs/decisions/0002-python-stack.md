@@ -5,11 +5,11 @@
 
 ## Context
 
-The project needs a gateway, a queue worker, a load generator, evals and report generation. The target role strongly prefers Python, and the ML serving ecosystem (vLLM, eval tooling, plotting) is Python-first.
+The project needs a gateway, a queue worker, a load generator, evals and report generation. The ML serving and evaluation ecosystem (vLLM, eval tooling, plotting) is Python-first, and a single language keeps the codebase and its tooling small.
 
 ## Options considered
 
-1. **Python throughout.** One language, matches the role and the ecosystem. The risk is a load generator that becomes the bottleneck at high request rates.
+1. **Python throughout.** One language, matching the serving and evaluation ecosystem. The risk is a load generator that becomes the bottleneck at high request rates.
 2. **Go load generator, Python elsewhere.** Faster client, but splits the codebase across two languages for one component.
 
 ## Decision

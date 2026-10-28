@@ -6,7 +6,7 @@ AI coding agents may be used to accelerate implementation, but the engineer owns
 
 Your job is increasingly becoming less “type every line yourself” and more “understand the system well enough to specify, evaluate, debug, modify, and take responsibility for the code.”
 
-That is especially true for forward-deployed and AI engineering work. Agents can write code, generate tests, add instrumentation, refactor implementations, and automate repetitive work. They must not replace the engineering reasoning this case study is designed to demonstrate.
+That is especially true for inference engineering work. Agents can write code, generate tests, add instrumentation, refactor implementations, and automate repetitive work. They must not replace the engineering reasoning this case study is designed to demonstrate.
 
 The human engineer owns:
 
@@ -66,4 +66,10 @@ The standard is not “did a human manually type the code?” The standard is: *
 
 - One ticket, or one clearly scoped piece of a ticket, per PR.
 - Fill in the PR template, including which acceptance criteria this PR satisfies.
-- Explain anything a reviewer would need to defend in an interview: why this approach, what the alternatives were, and what could make the result misleading.
+- Explain anything a reviewer would need to understand and defend: why this approach, what the alternatives were, and what could make the result misleading.
+
+## Repository content
+
+- Describe this project as independent engineering work: the problem, the design decisions, the experiments, and the results.
+- Never include the owner's job-search strategy, target employers, job applications, or personal career plans in tracked files, commit messages, PR titles, or PR descriptions without the owner's explicit approval. Explain decisions with technical requirements, not with who the work is for.
+- Company or product names may appear only as clearly labelled technical references (a cited paper, benchmark, dataset, or library) or as conceptual examples, never as a target audience.
